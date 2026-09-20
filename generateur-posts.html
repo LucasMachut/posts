@@ -1,0 +1,1696 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Générateur de posts — Lucas Machut</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Jost:wght@200;300;400&family=Questrial&family=Josefin+Sans:wght@200;300&family=Newsreader:ital,opsz,wght@0,6..72,300;1,6..72,300&display=swap" rel="stylesheet">
+<style>
+:root{
+  --papel:#F2ECE3; --tinta:#161113; --terra:#604C41; --brasa:#8A5A3E; --areia:#D8CCBC;
+  --pw:755px; --ph:755px;
+  --fonte:'Special Elite'; --fs:1; --track:.12em;
+  --grain:0; --grainsize:220px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#3a3634;font-family:var(--fonte),'Jost',system-ui,sans-serif;color:var(--tinta)}
+
+#bar{position:fixed;top:0;left:0;right:0;z-index:50;background:#221f1e;color:#e8e0d5;
+  display:flex;gap:.45rem;align-items:center;padding:.5rem .8rem;flex-wrap:wrap;font-size:12px;
+  border-bottom:1px solid #443f3c}
+#bar b{font-weight:400;letter-spacing:.12em;text-transform:uppercase;opacity:.55;margin-right:.4rem}
+#bar button,#bar select,#bar label,#bar input[type=number]{background:#332e2c;color:#e8e0d5;
+  border:1px solid #4a4441;border-radius:3px;padding:.32rem .55rem;font:inherit;cursor:pointer}
+#bar input[type=number]{width:62px;cursor:text}
+#bar button:hover{background:#443d3a}
+#bar button.go{background:#8A5A3E;border-color:#a06a49}
+#bar button.go:hover{background:#a06a49}
+#bar .sep{width:1px;height:20px;background:#4a4441;margin:0 .25rem}
+#hint{opacity:.55;margin-left:auto;font-size:11px}
+#qual{font-size:11px;color:#8fbf8f}
+#qual.bad{color:#e0a45c}
+
+#stage{padding:66px 0 80px}
+
+.page{width:var(--pw);height:var(--ph);margin:22px auto;background:var(--papel);
+  position:relative;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.45);
+  page-break-after:always;break-after:page}
+.page .num{position:absolute;bottom:6px;right:10px;font-size:9px;letter-spacing:.2em;
+  color:#fff;opacity:.45;z-index:8;text-shadow:0 0 3px rgba(0,0,0,.8)}
+
+.tools{position:absolute;top:6px;right:6px;z-index:16;display:flex;gap:3px;opacity:0;transition:.15s;
+  flex-wrap:wrap;max-width:calc(100% - 12px);justify-content:flex-end}
+.page:hover .tools{opacity:1}
+.tools button,.tools select{font:11px/1 'Jost',sans-serif;background:rgba(20,17,16,.85);color:#f0e8dd;
+  border:0;border-radius:3px;padding:.3rem .45rem;cursor:pointer}
+.tools button:hover{background:#8A5A3E}
+
+.ph{position:relative;overflow:hidden;background:#ddd5c9;cursor:pointer}
+.ph img{width:100%;height:100%;object-fit:cover;display:block;object-position:50% 50%;
+  transform-origin:center;-webkit-user-drag:none;user-select:none}
+.ph.sel{outline:3px solid var(--brasa);outline-offset:-3px}
+.ph .tag{position:absolute;left:5px;top:5px;background:rgba(20,17,16,.78);color:#f5cf8a;
+  font-size:10px;padding:2px 6px;border-radius:2px;opacity:0;transition:.15s;z-index:6;white-space:nowrap}
+.ph:hover .tag{opacity:1}
+
+.l-full .ph{position:absolute;inset:0}
+.l-duo{display:grid;grid-template-rows:1fr 1fr;height:100%}
+.l-trio{display:grid;grid-template-rows:1fr 1fr 1fr;height:100%}
+.l-duoV{display:grid;grid-template-columns:1fr 1fr;height:100%}
+.l-trioV{display:grid;grid-template-columns:1fr 1fr 1fr;height:100%}
+
+.over{position:absolute;z-index:10;transform:translate(-50%,-50%);
+  font-family:var(--fonte),sans-serif;font-weight:200;
+  letter-spacing:var(--track);font-size:calc(12.5pt * var(--fs));line-height:2.15;
+  color:#fff;text-shadow:0 1px 14px rgba(0,0,0,.75)}
+.over.dark{color:var(--tinta);text-shadow:0 1px 12px rgba(242,236,227,.8)}
+.over .grip{position:absolute;left:50%;top:-22px;transform:translateX(-50%);
+  width:44px;height:16px;border-radius:8px;background:rgba(138,90,62,.9);cursor:move;
+  opacity:0;transition:.15s;z-index:2}
+.over:hover .grip{opacity:1}
+.over .grip:after{content:'';position:absolute;left:12px;top:7px;width:20px;height:2px;
+  background:rgba(255,255,255,.85);box-shadow:0 4px 0 rgba(255,255,255,.85),0 -4px 0 rgba(255,255,255,.85)}
+
+.grain{position:absolute;inset:0;z-index:5;pointer-events:none;
+  opacity:var(--grain);mix-blend-mode:soft-light;
+  background-image:var(--grainimg);background-size:var(--grainpx) var(--grainpx);
+  background-repeat:repeat}
+.veil{position:absolute;inset:0;z-index:2;pointer-events:none}
+#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(20px);z-index:95;
+  background:rgba(18,16,15,.96);color:#e8e0d5;border:1px solid #4a4441;border-radius:5px;
+  padding:.7rem 1rem;max-width:620px;font:12px/1.6 'Jost',sans-serif;opacity:0;
+  transition:.2s;pointer-events:none;box-shadow:0 8px 26px rgba(0,0,0,.5)}
+#toast.show{opacity:1;transform:translateX(-50%)}
+.vgrip{position:absolute;left:6px;z-index:11;width:18px;height:18px;border-radius:50%;
+  background:rgba(90,120,150,.92);border:2px solid rgba(255,255,255,.7);cursor:ns-resize;
+  transform:translateY(-50%);opacity:0;transition:opacity .15s}
+.page:hover .vgrip{opacity:1}
+.vgrip:after{content:'voile';position:absolute;left:24px;top:1px;font:10px/1.4 'Jost',sans-serif;
+  color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.9);white-space:nowrap}
+
+.set{position:absolute;left:8px;bottom:8px;z-index:18;background:rgba(18,16,15,.95);
+  color:#e8e0d5;border-radius:4px;padding:.6rem .7rem;display:none;width:252px;
+  font:11px/1.5 'Jost',sans-serif;box-shadow:0 6px 22px rgba(0,0,0,.5)}
+.set.open{display:block}
+.set h4{margin:.1rem 0 .5rem;font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+  color:#9c918a;font-weight:400}
+.set .row{display:flex;align-items:center;gap:.4rem;margin-bottom:.34rem}
+.set .row span{width:62px;color:#9c918a;flex-shrink:0}
+.set .row input[type=range]{flex:1;height:14px}
+.set .row b{width:36px;text-align:right;font-weight:400;color:#f0e8dd}
+.set .btns{display:flex;gap:3px;margin:.15rem 0 .5rem}
+.set .btns button{flex:1;background:#332e2c;color:#e8e0d5;border:1px solid #4a4441;
+  border-radius:3px;padding:.25rem;cursor:pointer;font:11px/1 'Jost',sans-serif}
+.set .btns button:hover{background:#8A5A3E}
+.set hr{border:0;border-top:1px solid #3a3532;margin:.5rem 0}
+
+#drawer{position:fixed;right:0;top:0;bottom:0;width:480px;max-width:92vw;background:#1c1a19;z-index:60;
+  transform:translateX(100%);transition:.22s;display:flex;flex-direction:column;box-shadow:-8px 0 30px rgba(0,0,0,.5)}
+#drawer.open{transform:none}
+#drawer h3{margin:0;padding:.9rem .9rem .4rem;color:#e8e0d5;font-weight:300;font-size:12px;
+  letter-spacing:.18em;text-transform:uppercase}
+#drawer .sub{padding:0 .9rem .5rem;color:#9c918a;font-size:11px;line-height:1.5}
+#drawer .ctl{padding:0 .9rem .7rem;display:flex;gap:.5rem;align-items:center}
+#drawer .ctl input[type=text]{flex:1;background:#2b2725;border:1px solid #4a4441;color:#e8e0d5;
+  border-radius:3px;padding:.4rem .55rem;font:12px/1.3 'Jost',sans-serif}
+#drawer .ctl select{background:#2b2725;border:1px solid #4a4441;color:#e8e0d5;border-radius:3px;
+  padding:.4rem;font:12px/1.3 'Jost',sans-serif;cursor:pointer}
+#grid{flex:1;min-height:0;overflow-y:auto;display:grid;gap:10px;padding:0 .9rem 1.2rem;
+  grid-template-columns:repeat(var(--cols,2),1fr);grid-auto-rows:max-content;align-content:start}
+#grid figure{margin:0;position:relative;cursor:pointer;background:#0e0d0d;border-radius:2px;
+  display:flex;align-items:center;justify-content:center;height:var(--cell,215px);overflow:hidden}
+#grid img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block;opacity:.92}
+#grid figure:hover{outline:2px solid #8A5A3E}
+#grid figcaption{position:absolute;left:4px;top:4px;background:rgba(0,0,0,.78);color:#f5cf8a;
+  font-size:11px;padding:2px 6px;border-radius:2px;pointer-events:none;max-width:92%;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#drawer .close{position:absolute;top:.5rem;right:.7rem;background:none;border:0;color:#9c918a;
+  font-size:20px;cursor:pointer;z-index:2}
+
+.modal{display:none;position:fixed;inset:0;z-index:80;background:rgba(18,16,15,.93);
+  color:#e8e0d5;padding:6vh 6vw;overflow:auto;font:13px/1.85 'Jost',sans-serif}
+.modal.open{display:block}
+.modal .box{max-width:660px;margin:0 auto;background:#221f1e;padding:1.8rem 2rem;border-radius:5px}
+.modal h2{font-weight:300;letter-spacing:.14em;text-transform:uppercase;font-size:13px;margin:0 0 1.1rem}
+.modal p{margin:0 0 .9rem}
+.modal b{font-weight:400}
+.modal textarea{width:100%;min-height:190px;background:#171514;border:1px solid #4a4441;color:#e8e0d5;
+  border-radius:4px;padding:.7rem;font:13px/1.7 'Jost',sans-serif;resize:vertical}
+.modal .btn{background:#8A5A3E;color:#fff;border:0;border-radius:4px;padding:.6rem 1.1rem;
+  cursor:pointer;font:13px 'Jost',sans-serif;margin-right:.5rem}
+.modal .btn.sec{background:#332e2c;border:1px solid #4a4441}
+.modal .lab{display:block;color:#9c918a;font-size:11px;letter-spacing:.1em;text-transform:uppercase;margin:1rem 0 .4rem}
+
+#prog{display:none;position:fixed;inset:0;z-index:90;background:rgba(12,11,10,.96);color:#e8e0d5;
+  align-items:center;justify-content:center;flex-direction:column;font:14px/1.9 'Jost',sans-serif}
+#prog.open{display:flex}
+#prog .bar{width:340px;height:4px;background:#332e2c;border-radius:2px;margin-top:1rem;overflow:hidden}
+#prog .bar i{display:block;height:100%;width:0;background:#8A5A3E;transition:width .2s}
+
+@media print{
+  body{background:#fff}
+  #bar,#drawer,.modal,#prog,.tools,.set,.ph .tag,.page .num,.over .grip{display:none!important}
+  #stage{padding:0}
+  .page{margin:0;box-shadow:none}
+  /* Chrome rend mal les ombres de texte et les fusions en PDF : on les neutralise */
+  .over{text-shadow:none!important}
+  .grain{mix-blend-mode:normal!important;opacity:calc(var(--grain)*.5)!important}
+}
+#empty{max-width:540px;margin:16vh auto 0;padding:0 1.4rem;color:#cdc3b8;
+  font:13px/1.9 'Jost',sans-serif}
+#empty h1{font-weight:300;font-size:11px;letter-spacing:.22em;text-transform:uppercase;
+  color:#9c918a;margin:0 0 1.3rem}
+#empty p{margin:0 0 .85rem}
+#empty b{color:#e8e0d5;font-weight:400}
+#empty .sm{opacity:.5;font-size:12px;margin-top:1.4rem}
+#empty .acts{margin-top:1.7rem;display:flex;gap:.5rem}
+#empty button{background:#8A5A3E;color:#fff;border:0;border-radius:4px;padding:.55rem 1.1rem;
+  cursor:pointer;font:13px 'Jost',sans-serif}
+#empty button.sec{background:#332e2c;border:1px solid #4a4441;color:#e8e0d5}
+
+body.clean #bar,body.clean .tools,body.clean .set,body.clean .ph .tag,
+body.clean .page .num,body.clean .over .grip{display:none}
+body.clean #stage{padding:20px 0}
+#quitClean{display:none;position:fixed;top:14px;right:14px;z-index:90;background:#8A5A3E;
+  color:#fff;border:0;border-radius:5px;padding:.5rem 1rem;font:13px 'Jost',sans-serif;
+  cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.4)}
+body.clean #quitClean{display:block}
+</style>
+</head>
+<body>
+
+<button id="quitClean" onclick="document.body.classList.remove('clean')" title="Échap">quitter l'aperçu</button>
+
+<div id="bar">
+  <b>générateur de posts</b>
+  <button onclick="addPage()">+ page</button>
+  <div class="sep"></div>
+  <label>format
+    <select id="fmt" onchange="setFormat(this.value)"><option value="1080x1350" selected>Instagram portrait 4:5</option><option value="1080x1080">Instagram carré 1:1</option><option value="1080x1920">story / reel 9:16</option><option value="custom">personnalisé</option></select>
+  </label>
+  <input type="number" id="fw" min="200" max="6000" step="10" title="largeur en pixels d'export" oninput="customFmt()">
+  <span style="opacity:.5">×</span>
+  <input type="number" id="fh" min="200" max="6000" step="10" title="hauteur en pixels d'export" oninput="customFmt()">
+  <div class="sep"></div>
+  <label>police
+    <select id="fontSel" onchange="setFont(this.value)">
+      <option value="Special Elite">Special Elite</option>
+      <option value="Jost">Jost</option>
+      <option value="Josefin Sans">Josefin Sans</option>
+      <option value="Questrial">Questrial</option>
+      <option value="Newsreader">Newsreader</option>
+    </select>
+  </label>
+  <label>interlettre
+    <select id="trkSel" onchange="setTrack(this.value)">
+      <option value=".12em">normal</option>
+      <option value=".2em">large</option>
+      <option value=".28em">très large</option>
+      <option value=".05em">serré</option>
+    </select>
+  </label>
+  <label>taille <input type="range" id="fsGlob" min="0.6" max="3" step="0.05" value="1"
+      oninput="setFS(this.value)" style="vertical-align:middle;width:70px"><span id="fsVal" style="opacity:.6">100%</span></label>
+  <button onclick="document.getElementById('fsGlob').value=1; setFS(1);" title="remet la taille globale du texte à 100%" style="padding:.2rem .5rem;font-size:11px">↺ 100%</button>
+  <label>grain <input type="range" id="grGlob" min="0" max="0.65" step="0.01" value="0"
+      oninput="setGrain(this.value)" style="vertical-align:middle;width:70px"><span id="grVal" style="opacity:.6">0</span></label>
+  <label>finesse
+    <select id="grSize" onchange="setGrainSize()">
+      <option value="fin">fin</option><option value="moyen" selected>moyen</option><option value="gros">gros</option>
+    </select>
+  </label>
+  <div class="sep"></div>
+  <button onclick="uniformiserTextes()" title="toutes les planches reprennent la taille de texte de la plus contrainte">texte uniforme</button>
+  <button onclick="document.body.classList.toggle('clean')">aperçu propre</button>
+  <button class="go" onclick="startExport()">exporter les planches JPEG</button>
+  <span id="qual">—</span>
+  <div class="sep"></div>
+  <button onclick="open_('gen')">nouvelle proposition</button>
+  <button onclick="exportJSON()">sauver maquette</button>
+  <label style="position:relative;overflow:hidden">recharger maquette<input type="file" id="imp" accept="application/json,.json" style="position:absolute;inset:0;opacity:0;cursor:pointer"></label>
+  <button onclick="reset()">réinitialiser</button>
+  <button onclick="open_('aide')">?</button>
+  <span id="hint">photo : molette pour zoomer là où pointe la souris, glisser pour déplacer dedans</span>
+</div>
+
+<!-- selection du dossier des photos d'origine.
+     Le champ doit etre clique par l'utilisateur : un clic declenche par du code
+     apres un alert() est refuse par le navigateur, et la fenetre ne s'ouvre pas. -->
+<div id="dossier" class="modal" onclick="close_('dossier')">
+  <div class="box" onclick="event.stopPropagation()">
+    <h2>Photos d'origine</h2>
+    <p>Pour écrire les JPEG en pleine résolution, le navigateur doit lire tes fichiers lui-même.
+       Les aperçus affichés à l'écran ne suffisent pas.</p>
+    <p>Choisis le dossier qui contient tes photos d'origine. C'est demandé une seule fois
+       par session, ensuite l'export part tout seul.</p>
+    <p id="dossierManque" style="opacity:.6;font-size:12px"></p>
+    <label class="btn" style="display:inline-block;position:relative;overflow:hidden">choisir les photos
+      <input type="file" id="filePick" accept="image/*" multiple
+        style="position:absolute;inset:0;opacity:0;cursor:pointer">
+    </label>
+    <label class="btn sec" style="display:inline-block;position:relative;overflow:hidden;margin-right:.5rem">tout un dossier
+      <input type="file" id="dirPick" webkitdirectory directory multiple
+        style="position:absolute;inset:0;opacity:0;cursor:pointer">
+    </label>
+    <button class="btn sec" onclick="close_('dossier');PENDING=false">annuler</button>
+    <p style="opacity:.55;font-size:11px;margin-top:.9rem">Dans la fenêtre, sélectionne les images
+      (Ctrl+A prend tout le dossier). Choisir un dossier entier fait passer le navigateur sur tous
+      ses sous-dossiers, ce qui est très lent si un catalogue Lightroom traîne dedans.</p>
+  </div>
+</div>
+
+<div id="aide" class="modal" onclick="close_('aide')">
+  <div class="box" onclick="event.stopPropagation()">
+    <h2>Comment ça marche</h2>
+    <p><b>Photos.</b> Clic sur une photo pour ouvrir la banque et la remplacer. Glisser dessus la recadre,
+    la molette zoome. Le bouton <b>⚙</b> ouvre rotation, recadrage précis et réglages du voile.</p>
+    <p><b>Texte.</b> Clic dedans pour écrire. La pastille brune au-dessus du bloc le déplace n'importe où.
+    <b>A+ / A−</b> règlent la taille de cette page, le curseur « taille » celle de tout le document.</p>
+    <p><b>Format.</b> Le menu propose les formats courants, et les deux champs de pixels acceptent
+    n'importe quelle dimension. Les pages et l'export suivent immédiatement.</p>
+    <p><b>Export JPEG.</b> Le bouton <b>exporter les planches JPEG</b> fabrique chaque page en pleine
+    résolution et télécharge un seul fichier <b>.zip</b> contenant toutes les planches (un zip évite que
+    Chrome bloque les téléchargements multiples). Les photos chargées depuis le PC sont relues dans leur
+    fichier d'origine, donc aucune perte et aucun passage par un PDF ou une capture d'écran. S'il manque
+    une photo, le navigateur demande de désigner le dossier qui la contient.</p>
+    <p><b>Sauvegarder.</b> Automatique dans le navigateur, mais utilise <b>sauver maquette</b> pour garder
+    un fichier .json à toi.</p>
+    <p style="opacity:.6;margin-bottom:0">Clique n'importe où pour fermer.</p>
+  </div>
+</div>
+
+<div id="gen" class="modal" onclick="close_('gen')">
+  <div class="box" style="max-width:820px" onclick="event.stopPropagation()">
+    <h2>Nouvelle proposition</h2>
+
+    <span class="lab">1. Les photos</span>
+    <label class="btn" style="display:inline-block;position:relative;overflow:hidden">choisir des photos
+      <input type="file" id="genPhotos" accept="image/*" multiple style="position:absolute;inset:0;opacity:0;cursor:pointer">
+    </label>
+    <span id="genCount" style="opacity:.6;margin-left:.6rem">aucune photo</span>
+    <label style="color:#e8e0d5;margin-left:1.2rem"><input type="checkbox" id="genShuffle"> mélanger l'ordre</label>
+
+    <span class="lab">2. Le texte, et où le couper</span>
+    <div style="display:flex;gap:1.2rem;flex-wrap:wrap;align-items:flex-start">
+      <textarea id="genText" style="flex:1;min-width:320px;min-height:210px" oninput="genPreview()"
+placeholder="Colle ton texte ici.
+
+Chaque retour à la ligne est un vers.
+Le découpage choisi à droite décide comment ils se répartissent."></textarea>
+      <div style="width:280px;flex-shrink:0">
+        <div style="color:#9c918a;font-size:11px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.4rem">Découpage</div>
+        <select id="genCut" onchange="genPreview()" style="width:100%;background:#2b2725;border:1px solid #4a4441;color:#e8e0d5;border-radius:3px;padding:.45rem;font:13px 'Jost',sans-serif;margin-bottom:.5rem">
+          <option value="lines">un nombre fixe de vers par planche</option>
+          <option value="count">répartir sur un nombre de planches</option>
+          <option value="blank">là où je laisse une ligne vide</option>
+        </select>
+        <div class="row2" id="rowLines">
+          <label style="color:#9c918a;font-size:12px">vers par planche
+            <input type="number" id="genPerSlide" value="2" min="1" max="8" oninput="genPreview()"
+              style="width:56px;background:#2b2725;border:1px solid #4a4441;color:#e8e0d5;border-radius:3px;padding:.3rem;margin-left:.4rem"></label>
+        </div>
+        <div class="row2" id="rowCount" style="display:none">
+          <label style="color:#9c918a;font-size:12px">nombre de planches
+            <input type="number" id="genSlides" value="8" min="1" max="60" oninput="genPreview()"
+              style="width:56px;background:#2b2725;border:1px solid #4a4441;color:#e8e0d5;border-radius:3px;padding:.3rem;margin-left:.4rem"></label>
+        </div>
+        <div style="color:#9c918a;font-size:11px;letter-spacing:.1em;text-transform:uppercase;margin:.9rem 0 .4rem">Rythme</div>
+        <label style="color:#e8e0d5;font-size:12px;display:block;margin-bottom:.3rem">mises en page
+          <select id="genBands" onchange="genPreview()" style="width:100%;background:#2b2725;border:1px solid #4a4441;color:#e8e0d5;border-radius:3px;padding:.35rem;margin-top:.2rem">
+            <option value="1">une photo par planche</option>
+            <option value="2" selected>alterner 1 et 2 bandes</option>
+            <option value="3">alterner 1, 2 et 3 bandes</option>
+          </select></label>
+        <label style="color:#e8e0d5;font-size:12px;display:block;margin-bottom:.3rem">planche muette
+          <select id="genPause" onchange="genPreview()" style="width:100%;background:#2b2725;border:1px solid #4a4441;color:#e8e0d5;border-radius:3px;padding:.35rem;margin-top:.2rem">
+            <option value="0">aucune</option>
+            <option value="3" selected>une toutes les 3</option>
+            <option value="4">une toutes les 4</option>
+            <option value="2">une sur deux</option>
+          </select></label>
+        <label style="color:#e8e0d5;font-size:12px;display:block">texte placé
+          <select id="genPos" style="width:100%;background:#2b2725;border:1px solid #4a4441;color:#e8e0d5;border-radius:3px;padding:.35rem;margin-top:.2rem">
+            <option value="86" selected>en bas</option>
+            <option value="50">au centre</option>
+            <option value="16">en haut</option>
+          </select></label>
+      </div>
+    </div>
+
+    <span class="lab">3. Aperçu du découpage</span>
+    <div id="genPrev" style="background:#171514;border:1px solid #3a3532;border-radius:4px;
+      padding:.7rem .9rem;max-height:210px;overflow:auto;font-size:12px;line-height:1.7;color:#c9bfb5">
+      Colle un texte pour voir comment il sera réparti.
+    </div>
+
+    <span class="lab">4. Format et rendu</span>
+    <div style="display:flex;gap:.8rem;flex-wrap:wrap;align-items:center;margin-bottom:1.1rem">
+      <label style="color:#9c918a;font-size:12px">format
+        <select id="genFmt" style="background:#2b2725;border:1px solid #4a4441;color:#e8e0d5;border-radius:3px;padding:.35rem;margin-left:.3rem">
+          <option value="">garder le format actuel</option>
+          <option value="1080x1350">Instagram portrait 1080×1350</option>
+          <option value="1080x1080">Instagram carré 1080×1080</option>
+          <option value="1080x1920">story 1080×1920</option>
+        </select></label>
+      <label style="color:#9c918a;font-size:12px">grain
+        <input type="range" id="genGrain" min="0" max="0.65" step="0.01" value="0.25"
+          style="vertical-align:middle;width:90px"></label>
+      <label style="color:#9c918a;font-size:12px">voile
+        <input type="range" id="genVop" min="0" max="1" step="0.02" value="0.7"
+          style="vertical-align:middle;width:90px"></label>
+    </div>
+
+    <button class="btn" onclick="generate()">générer la proposition</button>
+    <button class="btn sec" onclick="close_('gen')">annuler</button>
+    <p style="opacity:.55;font-size:12px;margin-top:1rem;margin-bottom:0">
+      Tout reste modifiable page par page ensuite. Générer remplace les planches actuelles.</p>
+  </div>
+</div>
+
+<div id="prog"><div id="progTxt">Préparation…</div><div class="bar"><i id="progBar"></i></div></div>
+
+<div id="stage"></div>
+
+<div id="drawer">
+  <button class="close" onclick="closeDrawer()">×</button>
+  <h3>Banque de photos</h3>
+  <div class="sub">Clique une image pour remplacer celle qui est sélectionnée.</div>
+  <div class="ctl">
+    <input type="text" id="filtre" placeholder="filtrer par nom ou numéro" oninput="drawGrid()">
+    <select id="taille" onchange="setCell(this.value)">
+      <option value="2|215">2 colonnes</option><option value="1|400">1 colonne</option><option value="3|140">3 colonnes</option>
+    </select>
+  </div>
+  <div style="padding:0 .9rem .7rem">
+    <label style="display:block;position:relative;overflow:hidden;background:#8A5A3E;color:#fff;
+      text-align:center;padding:.5rem;border-radius:3px;cursor:pointer;font-size:12px">
+      + ajouter des photos du PC
+      <input type="file" id="addPhotos" accept="image/*" multiple style="position:absolute;inset:0;opacity:0;cursor:pointer">
+    </label>
+    <button onclick="viderBanque()" style="display:block;width:100%;margin-top:.4rem;background:#332e2c;
+      border:1px solid #4a4441;color:#9c918a;border-radius:3px;padding:.4rem;cursor:pointer;
+      font:11px 'Jost',sans-serif" title="les photos sont gardées dans le navigateur d'une session à l'autre">vider la banque gardée</button>
+  </div>
+  <div id="grid"></div>
+</div>
+
+<script>
+const VERSION = '2026-09-07-g';
+const PVDIR   = '';          // vide : les photos viennent du PC, chargees dans la banque
+const THDIR   = '';          // idem
+const ORIGDIR = '';          // aucun dossier impose
+let HD = true, selected = null;
+const EXTRA = {};   // photos ajoutees a la volee : {nom: dataURL}
+
+/* ---- banque persistante ----------------------------------------------
+   Les apercus sont gardes dans le navigateur (IndexedDB), pas seulement en
+   memoire : en rouvrant la page, les planches reviennent avec leurs photos.
+   L'export haute resolution relit toujours les fichiers d'origine du disque. */
+const PHDB={};
+function phOpen(){
+  if(PHDB.p) return PHDB.p;
+  PHDB.p=new Promise(res=>{
+    let r; try{ r=indexedDB.open('postgen-photos',2); }catch(e){ res(null); return; }
+    r.onupgradeneeded=()=>{
+      const db=r.result;
+      if(!db.objectStoreNames.contains('fotos'))     db.createObjectStore('fotos');      // apercus
+      if(!db.objectStoreNames.contains('originais')) db.createObjectStore('originais');  // fichiers d'origine
+    };
+    r.onsuccess=()=>res(r.result);
+    r.onerror=()=>res(null);
+  });
+  return PHDB.p;
+}
+async function phPut(k,v){ const db=await phOpen(); if(!db) return;
+  try{ db.transaction('fotos','readwrite').objectStore('fotos').put(v,k); }catch(e){} }
+async function phAll(){ const db=await phOpen(); if(!db) return {};
+  return new Promise(res=>{ try{
+    const out={}, c=db.transaction('fotos','readonly').objectStore('fotos').openCursor();
+    c.onsuccess=e=>{ const cur=e.target.result; if(!cur){res(out);return;} out[cur.key]=cur.value; cur.continue(); };
+    c.onerror=()=>res({});
+  }catch(e){ res({}); } });
+}
+async function phClear(){ const db=await phOpen(); if(!db) return;
+  try{ db.transaction(['fotos','originais'],'readwrite').objectStore('fotos').clear(); }catch(e){}
+  try{ db.transaction('originais','readwrite').objectStore('originais').clear(); }catch(e){} }
+// fichiers d'origine : c'est eux que l'export relit en pleine resolution.
+// On les garde pour ne demander le dossier qu'une seule fois, jamais plus.
+async function phPutFile(k,f){ const db=await phOpen(); if(!db||!f) return;
+  try{ db.transaction('originais','readwrite').objectStore('originais').put(f,k); }catch(e){} }
+async function phAllFiles(){ const db=await phOpen(); if(!db) return {};
+  return new Promise(res=>{ try{
+    const out={}, c=db.transaction('originais','readonly').objectStore('originais').openCursor();
+    c.onsuccess=e=>{ const cur=e.target.result; if(!cur){res(out);return;} out[cur.key]=cur.value; cur.continue(); };
+    c.onerror=()=>res({});
+  }catch(e){ res({}); } });
+}
+// ne garde que les originaux dont les planches ont besoin, pas tout un dossier
+function garderOriginaux(){
+  try{ neededPhotos().forEach(n=>{ if(FILES[n]) phPutFile(n,FILES[n]); }); }catch(e){}
+}
+function viderBanque(){
+  if(!confirm("Vider la banque de photos gardee dans le navigateur ?\n\nLes planches et les textes ne bougent pas, il faudra juste recharger les photos.")) return;
+  phClear().then(()=>{ Object.keys(EXTRA).forEach(k=>delete EXTRA[k]);
+    Object.keys(FILES).forEach(k=>delete FILES[k]); drawGrid(); render(); quality(); });
+}
+const FILES = {};   // fichiers pleine resolution designes pour l'export : {nom: File}
+
+let PAGES = [];
+
+const ALL = [];
+
+/* =====================  FORMAT  ===================== */
+let FMT = {w:1080,h:1350};                 // {w,h} en pixels d'export
+const SCREEN_MAX = 760;            // largeur maximale a l'ecran
+function applyFormat(){
+  const r = FMT.h/FMT.w;
+  const w = Math.min(SCREEN_MAX, 760), h = Math.round(w*r);
+  document.documentElement.style.setProperty('--pw', w+'px');
+  document.documentElement.style.setProperty('--ph', h+'px');
+  document.getElementById('fw').value = FMT.w;
+  document.getElementById('fh').value = FMT.h;
+  refreshGrainTexture();
+  setTimeout(fitAll,60);
+}
+function setFormat(v){
+  if(v==='custom') return;
+  const [w,h]=v.split('x').map(Number);
+  FMT={w,h}; applyFormat(); render(); save();
+}
+function customFmt(){
+  const w=+document.getElementById('fw').value, h=+document.getElementById('fh').value;
+  if(w>=200&&h>=200){FMT={w,h}; document.getElementById('fmt').value='custom';
+    applyFormat(); render(); save();}
+}
+
+/* =====================  GRAIN  ===================== */
+let GFS=1, GRAIN=0;
+// ---------- grain : une seule texture, celle de l'export, affichee reduite a l'ecran ----------
+// TUILE est definie a la resolution d'export ; a l'ecran elle est reduite dans la meme
+// proportion que la page, donc ce que tu vois correspond a ce qui sera ecrit.
+const TUILE = 512;
+let grainTile=null, grainKey='';
+function grainSizePx(){ return {fin:2, moyen:3, gros:5}[document.getElementById('grSize').value] || 3; }
+function makeGrainTile(px){
+  // bruit lisse a l'echelle demandee : on tire un bruit basse resolution puis on l'etire,
+  // ce qui donne des grains de « px » pixels plutot qu'un bruit pixel par pixel
+  const n=Math.max(8,Math.round(TUILE/px));
+  const small=document.createElement('canvas'); small.width=small.height=n;
+  const sx=small.getContext('2d'), d=sx.createImageData(n,n), a=d.data;
+  for(let i=0;i<a.length;i+=4){
+    // somme de deux tirages : distribution plus douce, moins « numerique »
+    const v=128+((Math.random()+Math.random()-1)*118);
+    a[i]=a[i+1]=a[i+2]=v; a[i+3]=255;
+  }
+  sx.putImageData(d,0,0);
+  const c=document.createElement('canvas'); c.width=c.height=TUILE;
+  const x=c.getContext('2d');
+  x.imageSmoothingEnabled=true; x.imageSmoothingQuality='high';
+  x.drawImage(small,0,0,TUILE,TUILE);
+  return c;
+}
+function grainTileFor(){
+  const key=grainSizePx()+'';
+  if(!grainTile||grainKey!==key){ grainTile=makeGrainTile(grainSizePx()); grainKey=key; }
+  return grainTile;
+}
+function refreshGrainTexture(){
+  const t=grainTileFor();
+  document.documentElement.style.setProperty('--grainimg','url('+t.toDataURL('image/png')+')');
+  // taille affichee = taille de la tuile ramenee a l'echelle de l'ecran
+  const cssw=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--pw'))||760;
+  document.documentElement.style.setProperty('--grainpx',(TUILE*cssw/FMT.w).toFixed(2)+'px');
+}
+
+/* =====================  RENDU  ===================== */
+// PVDIR : apercu 2000 px, toujours utilise a l'ecran. Les vignettes ne servent
+// qu'a la banque de photos. L'export, lui, relit les fichiers d'origine.
+function srcFor(n){ return EXTRA[n] ? EXTRA[n] : (PVDIR?PVDIR+'/'+n+'.jpg':''); }
+function thumbFor(n){ return EXTRA[n] ? EXTRA[n] : ((THDIR||PVDIR)+'/'+n+'.jpg'); }
+
+function coverScale(w,h,deg){
+  const a=Math.abs(deg%180)*Math.PI/180, c=Math.abs(Math.cos(a)), s=Math.abs(Math.sin(a));
+  return Math.max((w*c+h*s)/w,(w*s+h*c)/h);
+}
+// bornes du deplacement : l'image doit continuer a couvrir le cadre
+function panLimits(img,W,H,s){
+  const inw=img.naturalWidth||1, inh=img.naturalHeight||1;
+  const base=Math.max(W/inw,H/inh), rw=inw*base, rh=inh*base;
+  const pos=(img.style.objectPosition||'50% 50%').split(' ').map(v=>parseFloat(v));
+  const px=isNaN(pos[0])?50:pos[0], py=isNaN(pos[1])?50:pos[1];
+  const dx=(W-rw)*px/100, dy=(H-rh)*py/100;
+  const maxX = -(dx-W/2)*s - W/2;
+  const minX = W - (dx+rw-W/2)*s - W/2;
+  const maxY = -(dy-H/2)*s - H/2;
+  const minY = H - (dy+rh-H/2)*s - H/2;
+  return {minX:Math.min(minX,maxX), maxX:Math.max(minX,maxX),
+          minY:Math.min(minY,maxY), maxY:Math.max(minY,maxY)};
+}
+// meme calcul que panLimits, mais parametre directement (pas de <img> DOM) et rendu en
+// fraction de la zone, pour brider off[] a l'export exactement comme l'ecran le fait
+// deja en silence a chaque rendu (l'ecran re-clampe dataset.offx/offy sans jamais
+// corriger PAGES[].off : une valeur hors-bornes enregistree avant un ancien correctif
+// reste donc invisible a l'ecran mais reapparaissait, non bridee, a l'export).
+function panLimitsFrac(zw,zh,inw,inh,px,py,s){
+  const base=Math.max(zw/inw,zh/inh), rw=inw*base, rh=inh*base;
+  const dx=(zw-rw)*px/100, dy=(zh-rh)*py/100;
+  const maxX = -(dx-zw/2)*s - zw/2, minX = zw - (dx+rw-zw/2)*s - zw/2;
+  const maxY = -(dy-zh/2)*s - zh/2, minY = zh - (dy+rh-zh/2)*s - zh/2;
+  return {minX:Math.min(minX,maxX)/zw, maxX:Math.max(minX,maxX)/zw,
+          minY:Math.min(minY,maxY)/zh, maxY:Math.max(minY,maxY)/zh};
+}
+function fit(img){
+  const box=img.parentNode, W=box.clientWidth, H=box.clientHeight;
+  if(!W||!H) return;
+  const rot=parseFloat(img.dataset.rot||0), z=parseFloat(img.dataset.zoom||1);
+  const s=coverScale(W,H,rot)*z;
+  let ox=parseFloat(img.dataset.offx||0)*W, oy=parseFloat(img.dataset.offy||0)*H;
+  if(img.naturalWidth){
+    const L=panLimits(img,W,H,s);
+    const k = rot ? 1/coverScale(W,H,rot) : 1;   // rotation : marge reduite
+    ox=Math.max(L.minX*k,Math.min(L.maxX*k,ox));
+    oy=Math.max(L.minY*k,Math.min(L.maxY*k,oy));
+    img.dataset.offx=(ox/W).toFixed(5); img.dataset.offy=(oy/H).toFixed(5);
+    // meme geometrie qu'a l'export : l'image est posee a sa taille de couverture
+    // complete, jamais rognee par son propre cadre. C'est .ph qui coupe.
+    const inw=img.naturalWidth, inh=img.naturalHeight;
+    const base=Math.max(W/inw,H/inh), rw=inw*base, rh=inh*base;
+    const pp=(img.style.objectPosition||'50% 50%').split(' ').map(v=>parseFloat(v));
+    const px=isNaN(pp[0])?50:pp[0], py=isNaN(pp[1])?50:pp[1];
+    const dx=(W-rw)*px/100, dy=(H-rh)*py/100;
+    img.style.objectFit='fill';
+    img.style.position='absolute';
+    img.style.left=dx.toFixed(2)+'px';  img.style.top=dy.toFixed(2)+'px';
+    img.style.width=rw.toFixed(2)+'px'; img.style.height=rh.toFixed(2)+'px';
+    img.style.transformOrigin=(W/2-dx).toFixed(2)+'px '+(H/2-dy).toFixed(2)+'px';
+  }
+  img.style.transform=`translate(${ox.toFixed(2)}px,${oy.toFixed(2)}px) rotate(${rot}deg) scale(${s.toFixed(4)})`;
+}
+function fitAll(){document.querySelectorAll('.ph img').forEach(fit);}
+// reduit la police d'une page tant qu'un vers deborde du bloc
+function fitText(pg){
+  const o=pg.querySelector('.over'); if(!o) return;
+  const p=PAGES[+pg.dataset.p];
+  if(p.nowrap===false){o.style.removeProperty('--fsauto'); o.style.whiteSpace='';
+    o.style.fontSize=''; delete o.dataset.wrapped; return;}
+  o.style.whiteSpace='pre-wrap';
+  const base=(p.fs||1)*GFS;
+  let k=1, guard=0;
+  o.style.fontSize='';
+  const test=document.createElement('div');
+  test.style.cssText='position:absolute;visibility:hidden;white-space:pre;left:-9999px';
+  test.style.font=getComputedStyle(o).font;
+  test.style.letterSpacing=getComputedStyle(o).letterSpacing;
+  document.body.appendChild(test);
+  const vers=o.innerText.split('\n');
+  const max=()=>Math.max(...vers.map(v=>{test.textContent=v; return test.offsetWidth;}));
+  const target=o.clientWidth;
+  while(guard++<60 && max()>target && k>0.45){
+    k*=0.97;
+    o.style.fontSize=`calc(12.5pt * ${(base*k).toFixed(3)})`;
+    test.style.font=getComputedStyle(o).font;
+  }
+  // meme au plancher de retrecissement, un vers peut encore deborder : le navigateur
+  // le coupera alors en plusieurs lignes (pre-wrap). On marque la planche pour que
+  // « texte uniforme » ne la traite pas comme LA contrainte du document : elle passera
+  // a la ligne de toute facon, elle n'a pas besoin de tirer tout le monde vers le bas.
+  o.dataset.wrapped = (max()>target) ? '1' : '';
+  test.remove();
+}
+function fitTextAll(){document.querySelectorAll('.page').forEach(fitText);}
+// Chaque planche reduit son texte de son cote quand une ligne deborde, d'ou des
+// tailles differentes d'une planche a l'autre. Ici on aligne tout le monde sur la
+// plus petite taille utile, celle de la planche la plus contrainte.
+function toast(msg,ms){
+  let t=document.getElementById('toast');
+  if(!t){ t=document.createElement('div'); t.id='toast'; document.body.appendChild(t); }
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(t.__t); t.__t=setTimeout(()=>t.classList.remove('show'), ms||5000);
+}
+function uniformiserTextes(){
+  // on repart d'une base commune, sinon on ne mesure que des tailles deja reduites
+  // et le bouton ne peut plus que descendre.
+  PAGES.forEach(q=>{ if((q.over||'').trim()) q.fs=1; });
+  render();
+  setTimeout(uniformiser2, 140);
+}
+function uniformiser2(){
+  fitTextAll();
+  let m=Infinity, n=0, imin=0, nWrap=0;
+  document.querySelectorAll('.page').forEach(pg=>{
+    const o=pg.querySelector('.over'); if(!o||!o.innerText.trim()) return;
+    // une planche qui passe a la ligne de toute facon n'a pas besoin d'un vers unique :
+    // elle ne doit pas tirer les autres vers le bas, elle heritera juste de la taille commune.
+    if(o.dataset.wrapped==='1'){ nWrap++; return; }
+    const px=parseFloat(getComputedStyle(o).fontSize);
+    if(px>0){ if(px<m){ m=px; imin=+pg.dataset.p; } n++; }
+  });
+  if(!n||!isFinite(m)){
+    // tout le monde passe a la ligne : rien ne contraint la taille commune, on garde la base (100%).
+    PAGES.forEach(q=>{ if((q.over||'').trim()) q.fs=1; });
+    render(); save();
+    toast('Toutes les planches ont un texte trop long pour tenir sur une ligne : elles restent '+
+      'à la taille de base et passent à la ligne.', 6000);
+    return;
+  }
+  const unite=12.5*(96/72)*GFS;          // ce que vaut --fs:1 en pixels
+  const f=+(m/unite).toFixed(4);
+  PAGES.forEach(q=>{ if((q.over||'').trim()) q.fs=f; });
+  render(); save();
+  if(f<0.85) toast(`Tout est aligné sur la planche ${imin+1} : sa ligne la plus longue doit tenir `+
+    `sur une seule ligne, c'est elle qui fixe la taille. Pour remonter, élargis son bloc de texte `+
+    `dans le ⚙, autorise la coupure des vers avec le bouton ↵, ou raccourcis la ligne. Puis reclique ici.`, 11000);
+  else toast(nWrap ? `Textes uniformisés (${nWrap} planche(s) passent à la ligne, sans réduire les autres).`
+    : 'Textes uniformisés.', 4000);
+}
+window.addEventListener('resize',fitAll);
+
+function stamp(img){
+  const t=img.parentNode.querySelector('.tag'), n=img.parentNode.dataset.num;
+  const petit = img.naturalWidth<900;
+  t.textContent = `${n} · aperçu ${img.naturalWidth}×${img.naturalHeight}`
+    + (FILES[n]?' · original prêt':'') + (petit?' · APERÇU BASSE DÉF':'');
+  t.style.color = petit ? '#e0704c' : (FILES[n]?'#9fe09f':'#d9cfc4');
+  quality();
+}
+function quality(){
+  const need=neededPhotos(), ok=need.filter(n=>FILES[n]||EXTRA[n]).length;
+  const q=document.getElementById('qual');
+  if(!need.length){ q.textContent='—'; q.className=''; return; }
+  q.textContent = ok===need.length
+    ? `export : ${ok}/${need.length} originaux prêts`
+    : `export : dossier des photos à désigner (${need.length} originaux)`;
+  q.className = ok===need.length ? '' : 'bad';
+}
+function photoEl(num,pos,i,zoom,rot,off){
+  return `<div class="ph" data-i="${i}" data-num="${num}" onmousedown="startDrag(event,this)"
+    onclick="pickPhoto(this)" onwheel="wheelZoom(event,this)">
+    <img src="${srcFor(num)}" onload="stamp(this);fit(this)"
+      onerror="if(!this.dataset.f){this.dataset.f='1';this.src=thumbFor('${num}');}"
+      data-rot="${rot||0}" data-zoom="${zoom||1}"
+      data-offx="${(off&&off[0])||0}" data-offy="${(off&&off[1])||0}" alt=""
+      style="object-position:${pos||'50% 50%'}">
+    <span class="tag">${num}</span></div>`;
+}
+// vy : centre du voile en % de la hauteur · vsp : portee · vop : intensite
+// vmode : 'bas' plein jusqu'au bas · 'haut' plein jusqu'au haut · 'bande' estompe des deux cotes
+// Le voile ne sert qu'a poser du contraste sous le texte : par defaut c'est une
+// bande centree sur le bloc de texte, qui le suit quand on le deplace.
+// p.vlink===false : le voile est detache et garde sa propre position (p.vy).
+function vyOf(p){
+  if(p.vlink===false && p.vy!==undefined) return p.vy;
+  return p.ty===undefined?86:p.ty;
+}
+function vxOf(p){
+  if(p.vlink===false && p.vx!==undefined) return p.vx;
+  return p.tx===undefined?50:p.tx;
+}
+function vmodeOf(p){ return p.vmode || 'halo'; }
+function vwdOf(p){ return p.vwd===undefined?56:p.vwd; }
+function vspOf(p){ return p.vsp===undefined?24:p.vsp; }
+function veilStops(p){
+  const op=p.vop===undefined?0.70:p.vop, sp=p.vsp===undefined?44:p.vsp;
+  const y=vyOf(p), m=vmodeOf(p), h=sp/2;
+  const cl=v=>Math.max(0,Math.min(100,v));
+  if(m==='bas')  return [[cl(y-h),0],[cl(y-h*0.35),op*0.5],[cl(y),op],[100,op]];
+  if(m==='haut') return [[0,op],[cl(y),op],[cl(y+h*0.35),op*0.5],[cl(y+h),0]];
+  return [[cl(y-h),0],[cl(y),op],[cl(y+h),0]];
+}
+// halo : une tache ovale posee sur le bloc de texte, reglable en largeur et en hauteur.
+// Les autres modes restent des degrades sur toute la largeur de la planche.
+const HALO=[[0,1],[0.42,0.92],[0.70,0.48],[1,0]];
+function veilCSS(p){
+  if(vmodeOf(p)==='halo'){
+    const op=p.vop===undefined?0.70:p.vop;
+    const rw=Math.max(4,vwdOf(p))/2, rh=Math.max(3,vspOf(p))/2;
+    return `radial-gradient(ellipse ${rw.toFixed(1)}% ${rh.toFixed(1)}% at `+
+      `${vxOf(p).toFixed(1)}% ${vyOf(p).toFixed(1)}%,`+
+      HALO.map(([t,k])=>`rgba(0,0,0,${(op*k).toFixed(3)}) ${(t*100).toFixed(0)}%`).join(',')+')';
+  }
+  return 'linear-gradient(180deg,'+veilStops(p)
+    .map(([s,a])=>`rgba(0,0,0,${a.toFixed(3)}) ${s.toFixed(1)}%`).join(',')+')';
+}
+// ajuste le halo a la taille reelle du bloc de texte
+function autoVeil(pi){
+  const p=PAGES[pi];
+  if(!p||p.veil===0||p.vauto===false||vmodeOf(p)!=='halo') return;
+  const pg=document.querySelector('.page[data-p="'+pi+'"]'); if(!pg) return;
+  const o=pg.querySelector('.over'); if(!o) return;
+  const R=pg.getBoundingClientRect();
+  // on mesure les lignes de texte elles-memes, pas la largeur du bloc :
+  // une ligne courte doit donner un petit halo, pas une bande.
+  const rng=document.createRange(); rng.selectNodeContents(o);
+  const grip=o.querySelector('.grip'), gr=grip&&grip.getBoundingClientRect();
+  const rects=[...rng.getClientRects()].filter(x=>x.width>1&&x.height>1&&
+    !(gr&&Math.abs(x.left-gr.left)<1.5&&Math.abs(x.top-gr.top)<1.5));
+  if(!R.width||!R.height||!rects.length) return;
+  const L=Math.min(...rects.map(x=>x.left)),  Rg=Math.max(...rects.map(x=>x.right));
+  const T=Math.min(...rects.map(x=>x.top)),   B =Math.max(...rects.map(x=>x.bottom));
+  p.vwd=Math.min(100, (Rg-L)/R.width *100 + 10);
+  p.vsp=Math.min(100, (B-T) /R.height*100 + 7);
+  repaintVeil(pi);
+}
+function autoVeilAll(){ PAGES.forEach((q,i)=>autoVeil(i)); }
+function ajusterVoile(pi){ PAGES[pi].vauto=true; autoVeil(pi); openSet(pi); save(); }
+function overEl(p){
+  if(p.over===undefined) return '';
+  const tx=p.tx===undefined?50:p.tx, ty=p.ty===undefined?86:p.ty;
+  return `<div class="over ${p.col==='dark'?'dark':''}" contenteditable
+    style="left:${tx}%;top:${ty}%;width:${p.wd||78}%;text-align:${p.al||'center'}"
+    ><span class="grip" contenteditable="false" onmousedown="startText(event,this)"></span>${p.over}</div>`;
+}
+const TYPES={
+  full :{n:1,lab:'1 photo'},
+  duo  :{n:2,lab:'2 bandes'},
+  trio :{n:3,lab:'3 bandes'},
+  duoV :{n:2,lab:'2 colonnes'},
+  trioV:{n:3,lab:'3 colonnes'}};
+function needFor(t){ return (TYPES[t]||TYPES.full).n; }
+function isVert(t){ return t==='duoV'||t==='trioV'; }
+function usedPhotos(except){
+  const s=new Set();
+  PAGES.forEach(q=>{ if(q!==except) (q.photos||[]).forEach(n=>s.add(String(n))); });
+  return s;
+}
+function freePhoto(p){
+  const used=usedPhotos(null);
+  const pool=[...Object.keys(EXTRA), ...ALL.map(String)];
+  return pool.find(n=>!used.has(n)) || pool[0] || '';
+}
+function normalize(p){
+  // migration : l'ancien voile plein jusqu'au bord devient une bande liee au texte
+  if(p.vlink===undefined){ p.vlink=true; delete p.vy; }
+  if(p.v2===undefined){ p.v2=1; p.vmode='halo'; p.vauto=true; delete p.vx; }
+  const need=needFor(p.type);
+  p.photos=(p.photos||[]).filter(n=>n!==''&&n!==undefined&&n!==null).map(String);
+  if(!p.photos.length) p.photos=[freePhoto(p)];
+  while(p.photos.length<need) p.photos.push(freePhoto(p));
+  if(p.photos.length>need) p.photos=p.photos.slice(0,need);
+  ['pos','zoom','rot','off'].forEach(k=>{ if(p[k]&&p[k].length>need) p[k]=p[k].slice(0,need); });
+  return p;
+}
+const EMPTY = `<div id="empty">
+  <h1>Aucune planche pour l'instant</h1>
+  <p>Deux façons de commencer.</p>
+  <p><b>Nouvelle proposition</b> : tu charges tes photos, tu colles ton texte, tu choisis où il se coupe,
+  et les planches sont montées d'un coup. Tout reste modifiable après.</p>
+  <p><b>+ page</b> : une planche vide à remplir à la main, quand la séquence est déjà claire dans ta tête.</p>
+  <p class="sm">Format par défaut : Instagram portrait 1080×1350. Les photos restent sur le PC,
+  rien ne part sur un serveur. Le travail en cours est gardé dans le navigateur, et « sauver maquette »
+  en fait un fichier .json.</p>
+  <div class="acts">
+    <button onclick="open_('gen')">nouvelle proposition</button>
+    <button class="sec" onclick="addPage()">+ page</button>
+  </div>
+</div>`;
+
+function render(){
+  if(!PAGES.length){ document.getElementById('stage').innerHTML = EMPTY; quality(); return; }
+  PAGES.forEach(normalize);
+  document.getElementById('stage').innerHTML = PAGES.map((p,pi)=>{
+    let inner='';
+    if(p.type==='full'){
+      inner=`<div class="l-full">${photoEl(p.photos[0],p.pos&&p.pos[0],0,p.zoom&&p.zoom[0],p.rot&&p.rot[0],p.off&&p.off[0])}</div>`;
+    } else {
+      const cls='l-'+p.type;
+      inner=`<div class="${cls}">${p.photos.map((n,i)=>
+        photoEl(n,p.pos&&p.pos[i],i,p.zoom&&p.zoom[i],p.rot&&p.rot[i],p.off&&p.off[i])).join('')}</div>`;
+    }
+    const g=(p.grain===undefined?1:p.grain);
+    return `<div class="page" data-p="${pi}" style="--fs:${(p.fs||1)*GFS}">
+      ${inner}
+      ${p.veil?`<div class="veil" style="background:${veilCSS(p)}"></div>
+        <div class="vgrip" style="top:${vyOf(p)}%" onmousedown="startVeil(event,this)" title="glisser : le voile se détache du texte et reste où tu le poses"></div>`:''}
+      <div class="grain" style="opacity:${(GRAIN*g).toFixed(3)}"></div>
+      ${overEl(p)}
+      <div class="tools">
+        <select onchange="setType(${pi},this.value)">
+          ${Object.keys(TYPES).map(t=>`<option value="${t}" ${t===p.type?'selected':''}>${TYPES[t].lab}</option>`).join('')}
+        </select>
+        <button onclick="addText(${pi})" title="ajouter ou reprendre le texte de cette planche">T</button>
+        <button onclick="toggleVeil(${pi})">voile</button>
+        <button onclick="pageGrain(${pi},-0.25)">G−</button>
+        <button onclick="pageGrain(${pi},0.25)">G+</button>
+        <button onclick="cycleAlign(${pi})">⇤⇔⇥</button>
+        <button onclick="toggleWrap(${pi})" title="${p.nowrap===false?'les vers trop longs sont coupés':'les vers ne sont jamais coupés'}">${p.nowrap===false?'¶':'↵'}</button>
+        <button onclick="toggleCol(${pi})">◐</button>
+        <button onclick="pageFS(${pi},-0.08)">A−</button>
+        <button onclick="pageFS(${pi},0.08)">A+</button>
+        <button onclick="openSet(${pi})" title="rotation, recadrage, voile">⚙</button>
+        <button onclick="insertPage(${pi})" title="insérer une planche vide juste après">+</button>
+        <button onclick="movePage(${pi},-1)">↑</button>
+        <button onclick="movePage(${pi},1)">↓</button>
+        <button onclick="dupPage(${pi})">⧉</button>
+        <button onclick="delPage(${pi})">×</button>
+      </div>
+      <div class="num">${pi+1}</div>
+    </div>`;
+  }).join('');
+  bindText(); quality(); setTimeout(()=>{fitAll(); fitTextAll(); autoVeilAll();},60);
+}
+
+/* =====================  PANNEAU DE REGLAGES  ===================== */
+const SETIMG={};
+function setPanel(p,pi){
+  const n=(p.photos||[]).length, i=Math.min(SETIMG[pi]||0,n-1);
+  const sel = n>1 ? `<div class="row"><span>photo</span>
+      <select onchange="SETIMG[${pi}]=+this.value;openSet(${pi})"
+        style="flex:1;background:#332e2c;color:#e8e0d5;border:1px solid #4a4441;border-radius:3px;padding:.2rem">
+        ${Array.from({length:n},(_,k)=>`<option value="${k}" ${i===k?'selected':''}>photo ${k+1}</option>`).join('')}
+      </select></div>` : '';
+  const rot=(p.rot&&p.rot[i])||0, zm=(p.zoom&&p.zoom[i])||1;
+  const vop=p.vop===undefined?0.70:p.vop, vsp=vspOf(p), vwd=vwdOf(p), wd=p.wd||78;
+  const vy=vyOf(p), vm=vmodeOf(p);
+  return `<div class="set open" id="set${pi}">
+    <h4>Photo</h4>${sel}
+    <div class="row"><span>rotation</span><input type="range" min="-180" max="180" step="0.5" value="${rot}"
+      oninput="setRot(${pi},this.value)"><b id="rv${pi}">${rot}°</b></div>
+    <div class="btns">
+      <button onclick="setRot(${pi},${rot-90},1)">−90°</button>
+      <button onclick="setRot(${pi},0,1)">0°</button>
+      <button onclick="setRot(${pi},${rot+90},1)">+90°</button>
+      <button onclick="nudgeRot(${pi},-0.5)">−0,5°</button>
+      <button onclick="nudgeRot(${pi},0.5)">+0,5°</button></div>
+    <div class="btns"><button onclick="recenter(${pi})">recentrer la photo</button></div>
+    <div class="row"><span>recadrage</span><input type="range" min="1" max="6" step="0.02" value="${zm}"
+      oninput="setZoom(${pi},this.value)"><b id="zv${pi}">${(+zm).toFixed(2)}×</b></div>
+    <hr><h4>Voile</h4>
+    <div class="btns"><button id="vl${pi}" onclick="toggleVlink(${pi})"
+      ${p.vlink===false?'':'style="background:#8A5A3E"'}
+      title="le voile suit le bloc de texte">suivre le texte</button></div>
+    <div class="row"><span>position</span><input type="range" min="0" max="100" step="1" value="${vy}"
+      oninput="setVy(${pi},this.value)"><b id="vy${pi}">${Math.round(vy)}%</b></div>
+    <div class="btns">
+      <button onclick="setVmode(${pi},'halo')" ${vm==='halo'?'style="background:#8A5A3E"':''}>halo</button>
+      <button onclick="setVmode(${pi},'bande')" ${vm==='bande'?'style="background:#8A5A3E"':''}>bande</button>
+      <button onclick="setVmode(${pi},'bas')" ${vm==='bas'?'style="background:#8A5A3E"':''}>bas</button>
+      <button onclick="setVmode(${pi},'haut')" ${vm==='haut'?'style="background:#8A5A3E"':''}>haut</button></div>
+    ${vm==='halo'?`<div class="btns"><button onclick="ajusterVoile(${pi})"
+      ${p.vauto===false?'':'style="background:#8A5A3E"'}
+      title="le halo reprend la taille du bloc de texte">ajuster au texte</button></div>
+    <div class="row"><span>largeur</span><input type="range" min="6" max="100" step="1" value="${vwd}"
+      oninput="setVwd(${pi},this.value)"><b id="wv2${pi}">${Math.round(vwd)}%</b></div>`:''}
+    <div class="row"><span>hauteur</span><input type="range" min="4" max="100" step="1" value="${vsp}"
+      oninput="setVsp(${pi},this.value)"><b id="sv${pi}">${Math.round(vsp)}%</b></div>
+    <div class="row"><span>intensité</span><input type="range" min="0" max="1" step="0.02" value="${vop}"
+      oninput="setVop(${pi},this.value)"><b id="ov${pi}">${Math.round(vop*100)}%</b></div>
+    <hr><h4>Bloc de texte</h4>
+    <div class="row"><span>largeur</span><input type="range" min="28" max="100" step="1" value="${wd}"
+      oninput="setWdVal(${pi},this.value)"><b id="wv${pi}">${wd}%</b></div>
+    <div class="btns"><button onclick="closeSet(${pi})">fermer</button></div></div>`;
+}
+function openSet(pi){
+  document.querySelectorAll('.set').forEach(e=>e.remove());
+  const pg=document.querySelector('.page[data-p="'+pi+'"]');
+  pg.insertAdjacentHTML('beforeend', setPanel(PAGES[pi],pi));
+}
+function closeSet(pi){const e=document.getElementById('set'+pi); if(e) e.remove();}
+function curImg(pi){const pg=document.querySelector('.page[data-p="'+pi+'"]');
+  return pg?pg.querySelectorAll('.ph img')[SETIMG[pi]||0]:null;}
+function setRot(pi,v,redraw){
+  const i=SETIMG[pi]||0, p=PAGES[pi];
+  let r=parseFloat(v); r=((r+180)%360+360)%360-180;
+  p.rot=p.rot||[]; p.rot[i]=r;
+  const im=curImg(pi); if(im){im.dataset.rot=r; fit(im);}
+  const b=document.getElementById('rv'+pi); if(b) b.textContent=r.toFixed(1)+'°';
+  if(redraw) openSet(pi); save();
+}
+function nudgeRot(pi,d){const i=SETIMG[pi]||0; setRot(pi,(((PAGES[pi].rot||[])[i])||0)+d,1);}
+function setZoom(pi,v){
+  const i=SETIMG[pi]||0, p=PAGES[pi]; p.zoom=p.zoom||[]; p.off=p.off||[];
+  const z0=p.zoom[i]||1, z=parseFloat(v), k=z/z0;
+  const im=curImg(pi);
+  if(im){
+    im.dataset.offx=((parseFloat(im.dataset.offx||0))*k).toFixed(5);
+    im.dataset.offy=((parseFloat(im.dataset.offy||0))*k).toFixed(5);
+    im.dataset.zoom=z; fit(im);
+    p.off[i]=[+im.dataset.offx,+im.dataset.offy];
+  }
+  p.zoom[i]=z;
+  const b=document.getElementById('zv'+pi); if(b) b.textContent=z.toFixed(2)+'×'; save();
+}
+function recenter(pi){
+  const i=SETIMG[pi]||0, p=PAGES[pi];
+  p.off=p.off||[]; p.off[i]=[0,0];
+  const im=curImg(pi); if(im){im.dataset.offx=0; im.dataset.offy=0; fit(im);} save();
+}
+function repaintVeil(pi){
+  const pg=document.querySelector('.page[data-p="'+pi+'"]');
+  const el=pg&&pg.querySelector('.veil'); if(el) el.style.background=veilCSS(PAGES[pi]);
+}
+function setVy(pi,v){const p=PAGES[pi];
+  p.vy=parseFloat(v); p.vlink=false;                 // reglage manuel : le voile se detache
+  repaintVeil(pi);
+  const pg=document.querySelector('.page[data-p="'+pi+'"]');
+  const g=pg&&pg.querySelector('.vgrip'); if(g) g.style.top=v+'%';
+  const lb=document.getElementById('vl'+pi); if(lb) lb.style.background='';
+  const b=document.getElementById('vy'+pi); if(b) b.textContent=Math.round(v)+'%'; save();}
+function toggleVlink(pi){const p=PAGES[pi];
+  p.vlink = p.vlink===false;
+  if(p.vlink) delete p.vy;                            // il revient sous le texte
+  repaintVeil(pi);
+  const pg=document.querySelector('.page[data-p="'+pi+'"]');
+  const g=pg&&pg.querySelector('.vgrip'); if(g) g.style.top=vyOf(p)+'%';
+  openSet(pi); save();}
+function setVmode(pi,m){PAGES[pi].vmode=m; openSet(pi); repaintVeil(pi); save();}
+function setVop(pi,v){PAGES[pi].vop=parseFloat(v); repaintVeil(pi);
+  const b=document.getElementById('ov'+pi); if(b) b.textContent=Math.round(v*100)+'%'; save();}
+function setVsp(pi,v){PAGES[pi].vsp=parseFloat(v); PAGES[pi].vauto=false; repaintVeil(pi);
+  const b=document.getElementById('sv'+pi); if(b) b.textContent=Math.round(v)+'%'; save();}
+function setVwd(pi,v){PAGES[pi].vwd=parseFloat(v); PAGES[pi].vauto=false; repaintVeil(pi);
+  const b=document.getElementById('wv2'+pi); if(b) b.textContent=Math.round(v)+'%'; save();}
+function setWdVal(pi,v){PAGES[pi].wd=parseFloat(v);
+  const pg=document.querySelector('.page[data-p="'+pi+'"]');
+  const o=pg&&pg.querySelector('.over'); if(o){o.style.width=v+'%'; o.style.fontSize=''; fitText(pg); autoVeil(pi);}
+  const b=document.getElementById('wv'+pi); if(b) b.textContent=v+'%'; save();}
+
+/* =====================  EDITION  ===================== */
+function bindText(){
+  document.querySelectorAll('.page').forEach(pg=>{
+    const pi=+pg.dataset.p, o=pg.querySelector('.over');
+    if(o) o.addEventListener('input',()=>{
+      const c=o.cloneNode(true); const g=c.querySelector('.grip'); if(g) g.remove();
+      PAGES[pi].over=c.innerHTML;
+      clearTimeout(o.__t); o.__t=setTimeout(()=>autoVeil(pi),180);   // le halo se recale
+      save();});
+  });
+}
+function setType(i,t){
+  const p=PAGES[i]; p.type=t;
+  const need=needFor(t);
+  p.photos=p.photos||[];
+  while(p.photos.length<need) p.photos.push(String(ALL[0]||''));
+  p.photos=p.photos.slice(0,need);
+  ['pos','zoom','rot','off'].forEach(k=>{ if(p[k]) p[k]=p[k].slice(0,need); });
+  if(p.over===undefined) p.over='';
+  render(); save();
+}
+// pose un texte sur une planche qui n'en a pas, et met le curseur dedans
+function addText(i){
+  const p=PAGES[i], vide=(!p.over||!p.over.trim());
+  if(vide){ p.over='Texto'; if(!p.veil) p.veil=1; }
+  render(); save();
+  setTimeout(()=>{
+    const pg=document.querySelector('.page[data-p="'+i+'"]');
+    const o=pg&&pg.querySelector('.over'); if(!o) return;
+    o.scrollIntoView({block:'center'}); o.focus();
+    const tn=[...o.childNodes].filter(n=>n.nodeType===3&&n.textContent.trim()).pop();
+    const r=document.createRange(); tn?r.selectNodeContents(tn):r.selectNodeContents(o);
+    const sel=getSelection(); sel.removeAllRanges(); sel.addRange(r);
+  },90);
+}
+function toggleVeil(i){PAGES[i].veil=PAGES[i].veil?0:1; render(); save();}
+function cycleAlign(i){const a=['center','left','right'];
+  PAGES[i].al=a[(a.indexOf(PAGES[i].al||'center')+1)%3]; render(); save();}
+function toggleWrap(i){PAGES[i].nowrap = PAGES[i].nowrap===false ? true : false;
+  render(); save();}
+function toggleCol(i){PAGES[i].col=PAGES[i].col==='dark'?'light':'dark'; render(); save();}
+function pageFS(i,d){PAGES[i].fs=Math.max(.4,Math.min(3,(PAGES[i].fs||1)+d));
+  const pg=document.querySelector('.page[data-p="'+i+'"]');
+  if(pg){pg.style.setProperty('--fs',PAGES[i].fs*GFS);
+    const o=pg.querySelector('.over'); if(o) o.style.fontSize=''; fitText(pg); autoVeil(i);} save();}
+function pageGrain(i,d){PAGES[i].grain=Math.max(0,Math.min(2.5,(PAGES[i].grain===undefined?1:PAGES[i].grain)+d));
+  const pg=document.querySelector('.page[data-p="'+i+'"]');
+  const el=pg&&pg.querySelector('.grain');
+  if(el) el.style.opacity=(GRAIN*PAGES[i].grain).toFixed(3); save();}
+function movePage(i,d){const j=i+d; if(j<0||j>=PAGES.length)return;
+  [PAGES[i],PAGES[j]]=[PAGES[j],PAGES[i]]; render(); save();}
+function dupPage(i){
+  const c=JSON.parse(JSON.stringify(PAGES[i]));
+  PAGES.splice(i+1,0,c);
+  c.photos=c.photos.map(()=>freePhoto(c));   // la copie reprend la mise en page, pas les photos
+  render(); save();
+}
+function delPage(i){if(confirm('Supprimer cette page ?')){PAGES.splice(i,1); render(); save();}}
+function pageVide(){return {type:'full',photos:[],pos:['50% 50%'],veil:1,over:'',tx:50,ty:86,
+  vmode:'halo',vlink:true,vauto:true,v2:1,vop:0.7,wd:78};}
+function addPage(){PAGES.push(pageVide());
+  render(); save(); window.scrollTo(0,document.body.scrollHeight);}
+// insere une planche vide juste apres celle-ci, sans toucher a l'ordre du reste
+function insertPage(i){
+  PAGES.splice(i+1,0,pageVide());
+  render(); save();
+  const pg=document.querySelector('.page[data-p="'+(i+1)+'"]');
+  if(pg) pg.scrollIntoView({behavior:'smooth',block:'center'});
+}
+
+/* =====================  BANQUE  ===================== */
+function pickPhoto(el){
+  if(el.dataset.dragged==='1'){el.dataset.dragged='0';return;}
+  document.querySelectorAll('.ph.sel').forEach(e=>e.classList.remove('sel'));
+  el.classList.add('sel');
+  selected={page:+el.closest('.page').dataset.p,i:+el.dataset.i};
+  document.getElementById('drawer').classList.add('open');
+}
+function closeDrawer(){document.getElementById('drawer').classList.remove('open');
+  document.querySelectorAll('.ph.sel').forEach(e=>e.classList.remove('sel'));}
+function swap(n){
+  if(!selected) return;
+  const p=PAGES[selected.page], cur=String(p.photos[selected.i]), nn=String(n);
+  if(nn!==cur){
+    // si la photo est deja ailleurs, on echange les deux plutot que de la dupliquer
+    for(const q of PAGES){
+      const j=(q.photos||[]).indexOf(nn);
+      if(j>=0 && !(q===p && j===selected.i)){ q.photos[j]=cur; break; }
+    }
+  }
+  p.photos[selected.i]=nn;
+  render(); save(); closeDrawer();
+}
+function setCell(v){const [c,h]=v.split('|'); const g=document.getElementById('grid');
+  g.style.setProperty('--cols',c); g.style.setProperty('--cell',h+'px');}
+function drawGrid(){
+  const fEl=document.getElementById('filtre'), f=(fEl?fEl.value:'').trim().toLowerCase();
+  const usedE=usedPhotos(null);
+  const ex=Object.keys(EXTRA).filter(k=>!f||k.toLowerCase().includes(f)).map(k=>
+    `<figure onclick="swap('${k}')" ${usedE.has(k)?'style="opacity:.55"':''}><img src="${EXTRA[k]}">
+     <figcaption style="background:#8A5A3E;color:#fff">${k}${usedE.has(k)?' •':''}</figcaption></figure>`).join('');
+  const used=usedPhotos(null);
+  const mark=n=>used.has(String(n))
+    ? ' <span style="color:#9fe09f">• placée</span>' : '';
+  const li=ALL.filter(n=>!f||String(n).toLowerCase().includes(f)).map(n=>
+    `<figure onclick="swap('${n}')" ${used.has(String(n))?'style="opacity:.55"':''}>
+      <img loading="lazy" src="${thumbFor(n)}"><figcaption>${n}${mark(n)}</figcaption></figure>`).join('');
+  document.getElementById('grid').innerHTML = ex+li;
+}
+function readImages(files, cb){
+  let done=0; const total=files.length;
+  files.forEach(f=>{
+    const r=new FileReader();
+    r.onload=()=>{
+      const im=new Image();
+      im.onload=()=>{
+        const max=1800, sc=Math.min(1,max/Math.max(im.width,im.height));
+        const c=document.createElement('canvas');
+        c.width=Math.round(im.width*sc); c.height=Math.round(im.height*sc);
+        c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+        const key=f.name.replace(/\.[^.]+$/,'');
+        EXTRA[key]=c.toDataURL('image/jpeg',0.92);
+        FILES[key]=f;
+        phPut(key,EXTRA[key]);            // apercu garde pour la prochaine ouverture
+        phPutFile(key,f);                 // fichier d'origine garde pour l'export
+        if(++done===total && cb) cb();
+      };
+      im.src=r.result;
+    };
+    r.readAsDataURL(f);
+  });
+}
+document.getElementById('addPhotos').addEventListener('change',ev=>{
+  const fs=[...ev.target.files]; if(!fs.length)return;
+  readImages(fs, ()=>{ drawGrid(); render(); }); ev.target.value='';
+});
+
+/* =====================  RECADRAGE SOURIS  ===================== */
+let drag=null, tdrag=null;
+function startDrag(e,el){
+  const img=el.querySelector('img');
+  if(!img.naturalWidth){ e.preventDefault(); return; }   // image pas encore lue : pas de bornes fiables
+  drag={el,img,x:e.clientX,y:e.clientY,
+        ox:parseFloat(img.dataset.offx||0), oy:parseFloat(img.dataset.offy||0),
+        W:el.clientWidth, H:el.clientHeight, moved:false};
+  el.style.cursor='grabbing'; e.preventDefault();
+}
+function wheelZoom(e,el){
+  e.preventDefault();
+  const pi=+el.closest('.page').dataset.p, i=+el.dataset.i, p=PAGES[pi];
+  p.zoom=p.zoom||[]; p.off=p.off||[];
+  const im=el.querySelector('img');
+  const z0=p.zoom[i]||1, z=Math.max(1,Math.min(6,z0*(e.deltaY<0?1.06:1/1.06)));
+  // le point sous le curseur reste sous le curseur
+  const r=el.getBoundingClientRect();
+  const cx=e.clientX-r.left-r.width/2, cy=e.clientY-r.top-r.height/2;
+  const ox=parseFloat(im.dataset.offx||0)*r.width, oy=parseFloat(im.dataset.offy||0)*r.height;
+  const k=z/z0;
+  im.dataset.offx=((cx-(cx-ox)*k)/r.width).toFixed(5);
+  im.dataset.offy=((cy-(cy-oy)*k)/r.height).toFixed(5);
+  p.zoom[i]=z; im.dataset.zoom=z; fit(im);
+  p.off[i]=[+im.dataset.offx,+im.dataset.offy];
+  const b=document.getElementById('zv'+pi); if(b) b.textContent=z.toFixed(2)+'×';
+  save();
+}
+let vdrag=null;
+function startVeil(e,g){
+  const page=g.closest('.page');
+  vdrag={g,page,pi:+page.dataset.p,r:page.getBoundingClientRect()};
+  e.preventDefault(); e.stopPropagation();
+}
+function startText(e,grip){
+  const box=grip.parentNode, page=box.closest('.page');
+  tdrag={box,page,pi:+page.dataset.p,r:page.getBoundingClientRect()};
+  e.preventDefault(); e.stopPropagation();
+}
+window.addEventListener('mousemove',e=>{
+  if(vdrag){
+    const y=Math.max(0,Math.min(100,(e.clientY-vdrag.r.top)/vdrag.r.height*100));
+    vdrag.g.style.top=y.toFixed(1)+'%';
+    PAGES[vdrag.pi].vy=+y.toFixed(1);
+    PAGES[vdrag.pi].vlink=false;                      // glisse a la main : il se detache
+    const lb=document.getElementById('vl'+vdrag.pi); if(lb) lb.style.background='';
+    repaintVeil(vdrag.pi);
+    const b=document.getElementById('vy'+vdrag.pi); if(b) b.textContent=Math.round(y)+'%';
+    return;
+  }
+  if(tdrag){
+    const x=Math.max(4,Math.min(96,(e.clientX-tdrag.r.left)/tdrag.r.width*100));
+    const y=Math.max(4,Math.min(96,(e.clientY-tdrag.r.top)/tdrag.r.height*100));
+    tdrag.box.style.left=x.toFixed(1)+'%'; tdrag.box.style.top=y.toFixed(1)+'%';
+    tdrag.nx=x; tdrag.ny=y;
+    const p=PAGES[tdrag.pi]; p.tx=+x.toFixed(1); p.ty=+y.toFixed(1);
+    if(p.vlink!==false){                              // le voile est lie : il suit
+      repaintVeil(tdrag.pi);
+      const g=tdrag.page.querySelector('.vgrip'); if(g) g.style.top=vyOf(p)+'%';
+      const b=document.getElementById('vy'+tdrag.pi); if(b) b.textContent=Math.round(vyOf(p))+'%';}
+    return;
+  }
+  if(!drag) return;
+  const dx=e.clientX-drag.x, dy=e.clientY-drag.y;
+  if(Math.abs(dx)>2||Math.abs(dy)>2) drag.moved=true;
+  drag.img.dataset.offx=(drag.ox+dx/drag.W).toFixed(5);
+  drag.img.dataset.offy=(drag.oy+dy/drag.H).toFixed(5);
+  fit(drag.img);
+});
+window.addEventListener('mouseup',()=>{
+  if(vdrag){ save(); vdrag=null; return; }
+  if(tdrag){ if(tdrag.nx!==undefined) save(); tdrag=null; return; }
+  if(!drag) return;
+  drag.el.style.cursor='';
+  if(drag.moved){
+    drag.el.dataset.dragged='1';
+    const pi=+drag.el.closest('.page').dataset.p,i=+drag.el.dataset.i;
+    PAGES[pi].off=PAGES[pi].off||[];
+    PAGES[pi].off[i]=[+drag.img.dataset.offx, +drag.img.dataset.offy];
+    save();
+  }
+  drag=null;
+});
+
+/* =====================  TYPOGRAPHIE  ===================== */
+function setFont(f){document.documentElement.style.setProperty('--fonte',"'"+f+"'");
+  document.body.style.fontFamily="'"+f+"',sans-serif"; save();}
+function setTrack(v){document.documentElement.style.setProperty('--track',v); save();}
+function setFS(v){GFS=parseFloat(v);
+  document.getElementById('fsVal').textContent=Math.round(GFS*100)+'%';
+  document.querySelectorAll('.page').forEach(pg=>{
+    pg.style.setProperty('--fs',(PAGES[+pg.dataset.p].fs||1)*GFS);
+    const o=pg.querySelector('.over'); if(o) o.style.fontSize='';});
+  fitTextAll(); save();}
+function setGrain(v){GRAIN=parseFloat(v);
+  document.getElementById('grVal').textContent=Math.round(GRAIN*100)+'%';
+  document.querySelectorAll('.page').forEach(pg=>{
+    const p=PAGES[+pg.dataset.p], g=(p.grain===undefined?1:p.grain);
+    const el=pg.querySelector('.grain'); if(el) el.style.opacity=(GRAIN*g).toFixed(3);}); save();}
+function setGrainSize(){ refreshGrainTexture(); save(); }
+let hoverPage=null;
+document.addEventListener('mouseover',e=>{const pg=e.target.closest&&e.target.closest('.page');
+  if(pg) hoverPage=+pg.dataset.p;});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape' && document.body.classList.contains('clean')){
+    document.body.classList.remove('clean'); e.preventDefault(); return;
+  }
+  if(e.target.isContentEditable||hoverPage===null) return;
+  if(e.key==='+'||e.key==='='){pageFS(hoverPage,0.08);e.preventDefault();}
+  if(e.key==='-'||e.key==='_'){pageFS(hoverPage,-0.08);e.preventDefault();}
+});
+
+/* =====================  EXPORT JPEG PLEINE RESOLUTION  ===================== */
+function open_(id){document.getElementById(id).classList.add('open');
+  if(id==='gen') genPreview();}
+function close_(id){document.getElementById(id).classList.remove('open');}
+
+function neededPhotos(){
+  // un emplacement encore vide n'est pas une photo manquante
+  const s=new Set();
+  PAGES.forEach(p=>(p.photos||[]).forEach(n=>{ if(n!==''&&n!=null) s.add(String(n)); }));
+  return [...s];
+}
+// l'ecouteur est attache une fois pour toutes
+function indexFiles(list){
+  const fs=[...list].filter(f=>/\.(jpe?g|png|webp|tiff?)$/i.test(f.name));
+  // priorite au nom complet
+  fs.forEach(f=>{FILES[f.name.replace(/\.[^.]+$/,'')]=f;});
+  // puis au numero extrait de « … (182 sur 384).jpg », sans ecraser
+  fs.forEach(f=>{
+    const m=f.name.match(/\((\d+)\s+(?:sur|of|de)\s+\d+\)/i);
+    if(m && !FILES[m[1]]) FILES[m[1]]=f;
+  });
+  // enfin par le seul nombre du nom, si le fichier n'en contient qu'un
+  fs.forEach(f=>{
+    const base=f.name.replace(/\.[^.]+$/,''), d=base.match(/\d+/g);
+    if(d && d.length===1 && !FILES[d[0]]) FILES[d[0]]=f;
+  });
+  return fs.length;
+}
+function recevoirFichiers(liste, champ){
+  const fs=[...liste].filter(f=>/\.(jpe?g|png|webp|tiff?)$/i.test(f.name));
+  indexFiles(liste);
+  if(champ) champ.value='';
+  if(!fs.length){
+    const d=document.getElementById('dossierManque');
+    if(d) d.textContent='Aucune image trouvée dans ce dossier. Essaie un autre dossier.';
+    return;
+  }
+  const still=neededPhotos().filter(n=>!FILES[n]);
+  quality();
+  garderOriginaux();                       // gardes des maintenant, meme si la liste est incomplete
+  if(still.length){
+    const d=document.getElementById('dossierManque');
+    if(d) d.textContent=`${fs.length} image(s) lues, il manque encore ${still.length} photo(s) : `+
+      still.slice(0,8).join(', ')+(still.length>8?'…':'')+'. Choisis le dossier qui les contient.';
+    return;
+  }
+  close_('dossier');
+  if(PENDING){ PENDING=false; runExport(); }
+}
+document.getElementById('dirPick').addEventListener('change', function(){ recevoirFichiers(this.files,this); });
+document.getElementById('filePick').addEventListener('change', function(){ recevoirFichiers(this.files,this); });
+let PENDING=false;
+function startExport(){
+  if(!PAGES.length){ alert('Aucune page à exporter.'); return; }
+  const need=neededPhotos().filter(n=>!FILES[n]);
+  if(need.length){
+    PENDING=true;
+    const d=document.getElementById('dossierManque');
+    if(d) d.textContent=`Il manque ${need.length} photo(s) : `+
+      need.slice(0,8).join(', ')+(need.length>8?'…':'');
+    open_('dossier');
+    return;
+  }
+  runExport();
+}
+
+const imgCache={};
+function loadFull(name){
+  if(imgCache[name]) return Promise.resolve(imgCache[name]);
+  return new Promise((res,rej)=>{
+    const f=FILES[name];
+    if(!f){ rej(new Error('photo absente : '+name)); return; }
+    const url=URL.createObjectURL(f), im=new Image();
+    im.onload=()=>{URL.revokeObjectURL(url); imgCache[name]=im; res(im);};
+    im.onerror=()=>{URL.revokeObjectURL(url); rej(new Error('illisible : '+name));};
+    im.src=url;
+  });
+}
+function stripHTML(h){
+  // Dans le champ editable, Entree cree un <div> autour de la nouvelle ligne (pas un <br>) :
+  // le navigateur le traite comme une vraie ligne (innerText y insere un \n), donc l'export
+  // doit faire pareil, sinon un texte tape sur 2 lignes redevient un seul (tres long) vers
+  // au moment d'exporter, et se retrouve minuscule pour tenir.
+  return String(h||'').replace(/<span class="grip"[^>]*><\/span>/g,'')
+    .replace(/<br\s*\/?>/gi,'\n')
+    .replace(/<(?:div|p)[^>]*>/gi,'\n').replace(/<\/(?:div|p)>/gi,'')
+    .replace(/<[^>]+>/g,'')
+    .replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>')
+    .replace(/^\n+/,'').replace(/\n{2,}/g,'\n');
+}
+// un retour a la ligne est une fin de vers. On ne recoupe un vers que s'il
+// deborde vraiment, et seulement quand le mode « ne jamais couper » est desactive.
+function wrapLines(ctx,text,maxw,nowrap){
+  const vers=text.split('\n');
+  if(nowrap) return vers;
+  const out=[];
+  vers.forEach(par=>{
+    if(par.trim()===''){out.push(''); return;}
+    let line='';
+    par.split(' ').forEach(w=>{
+      const t=line?line+' '+w:w;
+      if(ctx.measureText(t).width>maxw && line){out.push(line); line=w;}
+      else line=t;
+    });
+    out.push(line);
+  });
+  return out;
+}
+
+async function drawPage(p, W, H){
+  const c=document.createElement('canvas'); c.width=W; c.height=H;
+  const x=c.getContext('2d');
+  const CSSW=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--pw'));
+  const k=W/CSSW;                               // echelle export / ecran
+  x.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--papel').trim()||'#F2ECE3';
+  x.fillRect(0,0,W,H);
+
+  // zones photo
+  const n=(p.photos||[]).length;
+  const zones=[];
+  const vert=isVert(p.type);
+  for(let i=0;i<n;i++) zones.push(vert
+    ? {x:W*i/n, y:0, w:W/n, h:H}
+    : {x:0, y:H*i/n, w:W, h:H/n});
+
+  for(let i=0;i<n;i++){
+    const z=zones[i], name=String(p.photos[i]||'');
+    if(!name) continue;                      // emplacement vide : on laisse le papier
+    const im=await loadFull(name);
+    const pos=((p.pos&&p.pos[i])||'50% 50%').split(' ').map(v=>parseFloat(v));
+    const px=isNaN(pos[0])?50:pos[0], py=isNaN(pos[1])?50:pos[1];
+    const rot=(p.rot&&p.rot[i])||0, zm=(p.zoom&&p.zoom[i])||1;
+    const base=Math.max(z.w/im.naturalWidth, z.h/im.naturalHeight);
+    const dw=im.naturalWidth*base, dh=im.naturalHeight*base;
+    const dx=(z.w-dw)*px/100, dy=(z.h-dh)*py/100;
+    const sc=coverScale(z.w,z.h,rot)*zm;
+    const off=(p.off&&p.off[i])||[0,0];
+    const L=panLimitsFrac(z.w,z.h,im.naturalWidth,im.naturalHeight,px,py,sc);
+    const offX=Math.max(L.minX,Math.min(L.maxX,off[0]||0));
+    const offY=Math.max(L.minY,Math.min(L.maxY,off[1]||0));
+    x.save();
+    x.beginPath(); x.rect(z.x,z.y,z.w,z.h); x.clip();
+    x.translate(z.x+z.w/2 + offX*z.w, z.y+z.h/2 + offY*z.h);
+    x.rotate(rot*Math.PI/180); x.scale(sc,sc);
+    x.translate(-z.w/2,-z.h/2);
+    x.imageSmoothingEnabled=true; x.imageSmoothingQuality='high';
+    x.drawImage(im,dx,dy,dw,dh);
+    x.restore();
+  }
+
+  // voile
+  if(p.veil){
+    if(vmodeOf(p)==='halo'){
+      const op=p.vop===undefined?0.70:p.vop;
+      const rw=Math.max(4,vwdOf(p))/200*W, rh=Math.max(3,vspOf(p))/200*H;
+      x.save();
+      x.translate(W*vxOf(p)/100, H*vyOf(p)/100); x.scale(rw,rh);
+      const g=x.createRadialGradient(0,0,0,0,0,1);
+      HALO.forEach(([t,k])=>g.addColorStop(t,`rgba(0,0,0,${(op*k).toFixed(3)})`));
+      x.fillStyle=g; x.beginPath(); x.arc(0,0,1,0,Math.PI*2); x.fill();
+      x.restore();
+    } else {
+      const g=x.createLinearGradient(0,0,0,H);
+      veilStops(p).forEach(([s,a])=>g.addColorStop(Math.max(0,Math.min(1,s/100)),`rgba(0,0,0,${a})`));
+      x.fillStyle=g; x.fillRect(0,0,W,H);
+    }
+  }
+
+  // grain : la texture de l'ecran, a sa taille naturelle
+  const gm=GRAIN*(p.grain===undefined?1:p.grain);
+  if(gm>0.001){
+    const t=grainTileFor();
+    x.save(); x.globalAlpha=gm; x.globalCompositeOperation='soft-light';
+    x.fillStyle=x.createPattern(t,'repeat'); x.fillRect(0,0,W,H);
+    x.restore();
+  }
+
+  // texte
+  const raw=stripHTML(p.over);
+  if(raw.trim()!==''){
+    const fs=12.5*(96/72)*(p.fs||1)*GFS*k;              // 12.5pt en px, a l'echelle export
+    const fam=document.getElementById('fontSel').value;
+    const trk=getComputedStyle(document.documentElement).getPropertyValue('--track').trim();
+    const trkPx=parseFloat(trk)*fs;                      // em -> px
+    const nowrap = p.nowrap!==false;
+    let fsz=fs;
+    const wd=(p.wd||78)/100*W;
+    const setF=v=>{x.font=`200 ${v}px "${fam}", sans-serif`;
+      if('letterSpacing' in x) x.letterSpacing=`${parseFloat(trk)*v}px`;};
+    setF(fsz);
+    let forceWrap=false;
+    if(nowrap){
+      let guard=0;
+      while(guard++<60){
+        const w=Math.max(...raw.split('\n').map(l=>x.measureText(l).width));
+        if(w<=wd || fsz<fs*0.45) break;
+        fsz*=0.97; setF(fsz);
+      }
+      // A l'ecran, .over est en white-space:pre-wrap : si le plancher de retrecissement
+      // (45%) est atteint et qu'un vers deborde encore, le navigateur le coupe en plusieurs
+      // lignes tout seul plutot que de continuer a retrecir ou de deborder. L'export doit
+      // faire pareil, sinon le texte y ressort plus petit que ce qui s'affiche a l'ecran.
+      const w=Math.max(...raw.split('\n').map(l=>x.measureText(l).width));
+      if(w>wd) forceWrap=true;
+    }
+    x.textBaseline='middle';
+    const lines=wrapLines(x,raw,wd, nowrap && !forceWrap);
+    const lh=fsz*2.15;
+    const cx=(p.tx===undefined?50:p.tx)/100*W;
+    const cy=(p.ty===undefined?86:p.ty)/100*H;
+    const total=lines.length*lh;
+    const al=p.al||'center';
+    x.textAlign = al==='left'?'left':(al==='right'?'right':'center');
+    const ax = al==='left' ? cx-wd/2 : (al==='right' ? cx+wd/2 : cx);
+    x.fillStyle = p.col==='dark' ? '#161113' : '#ffffff';
+    x.shadowColor = p.col==='dark' ? 'rgba(242,236,227,.8)' : 'rgba(0,0,0,.75)';
+    x.shadowBlur = 14*k;
+    lines.forEach((ln,i)=>{
+      x.fillText(ln, ax, cy - total/2 + lh*(i+0.5));
+    });
+    x.shadowBlur=0;
+  }
+  return c;
+}
+
+// ---- petit createur de ZIP (methode « store », sans compression, sans dependance) ----
+// Chrome bloque silencieusement les telechargements automatiques multiples declenches
+// par une page (a partir du 2e fichier) : l'export se figeait apres la 1ere planche,
+// sans aucun message. Un seul fichier ZIP evite completement ce blocage.
+const CRC_TABLE=(()=>{const t=[];for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);t[n]=c>>>0;}return t;})();
+function crc32(u8){let c=0xFFFFFFFF;for(let i=0;i<u8.length;i++)c=CRC_TABLE[(c^u8[i])&0xFF]^(c>>>8);return (c^0xFFFFFFFF)>>>0;}
+function dosDT(d){d=d||new Date();
+  return {time:((d.getHours()&0x1F)<<11)|((d.getMinutes()&0x3F)<<5)|((d.getSeconds()>>1)&0x1F),
+          date:(((d.getFullYear()-1980)&0x7F)<<9)|(((d.getMonth()+1)&0xF)<<5)|(d.getDate()&0x1F)};}
+async function buildZip(entries){
+  const {time,date}=dosDT(), enc=new TextEncoder();
+  const chunks=[], central=[]; let offset=0;
+  for(const {name,blob} of entries){
+    const data=new Uint8Array(await blob.arrayBuffer());
+    const crc=crc32(data), nb=enc.encode(name);
+    const lh=new DataView(new ArrayBuffer(30));
+    lh.setUint32(0,0x04034b50,true); lh.setUint16(4,20,true); lh.setUint16(6,0,true);
+    lh.setUint16(8,0,true); lh.setUint16(10,time,true); lh.setUint16(12,date,true);
+    lh.setUint32(14,crc,true); lh.setUint32(18,data.length,true); lh.setUint32(22,data.length,true);
+    lh.setUint16(26,nb.length,true); lh.setUint16(28,0,true);
+    chunks.push(new Uint8Array(lh.buffer), nb, data);
+    const ch=new DataView(new ArrayBuffer(46));
+    ch.setUint32(0,0x02014b50,true); ch.setUint16(4,20,true); ch.setUint16(6,20,true);
+    ch.setUint16(8,0,true); ch.setUint16(10,0,true); ch.setUint16(12,time,true); ch.setUint16(14,date,true);
+    ch.setUint32(16,crc,true); ch.setUint32(20,data.length,true); ch.setUint32(24,data.length,true);
+    ch.setUint16(28,nb.length,true); ch.setUint16(30,0,true); ch.setUint16(32,0,true);
+    ch.setUint16(34,0,true); ch.setUint16(36,0,true); ch.setUint32(38,0,true); ch.setUint32(42,offset,true);
+    central.push(new Uint8Array(ch.buffer), nb);
+    offset += 30+nb.length+data.length;
+  }
+  const centralStart=offset;
+  let centralSize=0; central.forEach(c=>centralSize+=c.length);
+  const end=new DataView(new ArrayBuffer(22));
+  end.setUint32(0,0x06054b50,true); end.setUint16(4,0,true); end.setUint16(6,0,true);
+  end.setUint16(8,entries.length,true); end.setUint16(10,entries.length,true);
+  end.setUint32(12,centralSize,true); end.setUint32(16,centralStart,true); end.setUint16(20,0,true);
+  return new Blob([...chunks, ...central, new Uint8Array(end.buffer)], {type:'application/zip'});
+}
+async function runExport(){
+  const W=FMT.w, H=FMT.h;
+  const prog=document.getElementById('prog'), bar=document.getElementById('progBar'),
+        txt=document.getElementById('progTxt');
+  prog.classList.add('open');
+  try{ await document.fonts.ready; }catch(e){}
+  const entries=[];
+  for(let i=0;i<PAGES.length;i++){
+    txt.textContent=`Planche ${i+1} sur ${PAGES.length} — ${W} × ${H} px`;
+    bar.style.width=Math.round((i/PAGES.length)*100)+'%';
+    await new Promise(r=>setTimeout(r,20));
+    let c;
+    try{ c=await drawPage(PAGES[i],W,H); }
+    catch(e){ prog.classList.remove('open');
+      alert('Planche '+(i+1)+' : '+e.message+'\n\nL\'export s\'arrête ici.'); return; }
+    const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',1.0));
+    entries.push({name:`planche-${String(i+1).padStart(2,'0')}.jpg`, blob});
+  }
+  txt.textContent='Assemblage du dossier ZIP…';
+  bar.style.width='96%';
+  let zip;
+  try{ zip=await buildZip(entries); }
+  catch(e){ prog.classList.remove('open');
+    alert('Le dossier ZIP n\'a pas pu être créé : '+e.message+
+      '\n\nLes planches ont bien été générées, mais réessaie l\'export.'); return; }
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(zip);
+  const d=new Date(), pad=n=>String(n).padStart(2,'0');
+  a.download=`planches-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.zip`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+  bar.style.width='100%'; txt.textContent=`Terminé — ${entries.length} planches dans le ZIP.`;
+  setTimeout(()=>prog.classList.remove('open'),1600);
+}
+
+/* =====================  GENERATEUR  ===================== */
+document.getElementById('genPhotos') && document.getElementById('genPhotos')
+  .addEventListener('change',ev=>{
+    const fs=[...ev.target.files]; if(!fs.length)return;
+    document.getElementById('genCount').textContent='lecture…';
+    readImages(fs,()=>{drawGrid(); genPreview();
+      document.getElementById('genCount').textContent=Object.keys(EXTRA).length+' photo(s) prêtes';});
+    ev.target.value='';
+  });
+function cutText(){
+  const raw=document.getElementById('genText').value;
+  const mode=document.getElementById('genCut').value;
+  document.getElementById('rowLines').style.display = mode==='lines'?'':'none';
+  document.getElementById('rowCount').style.display = mode==='count'?'':'none';
+  if(!raw.trim()) return [];
+  if(mode==='blank')
+    return raw.split(/\n\s*\n/).map(b=>b.trim()).filter((b,i,a)=>b!==''||i<a.length-1);
+  const lines=raw.split('\n').map(l=>l.trim()).filter(l=>l!=='');
+  if(mode==='lines'){
+    const per=Math.max(1,+document.getElementById('genPerSlide').value||2);
+    const out=[]; for(let i=0;i<lines.length;i+=per) out.push(lines.slice(i,i+per).join('\n'));
+    return out;
+  }
+  const n=Math.max(1,+document.getElementById('genSlides').value||1);
+  const out=[]; const per=lines.length/n;
+  for(let i=0;i<n;i++){
+    const a=Math.round(i*per), b=Math.round((i+1)*per);
+    out.push(lines.slice(a,b).join('\n'));
+  }
+  return out.filter(x=>x!==undefined);
+}
+function planPages(){
+  const blocks=cutText();
+  const bands=+document.getElementById('genBands').value;
+  const pause=+document.getElementById('genPause').value;
+  const ty=+document.getElementById('genPos').value;
+  const plan=[];
+  blocks.forEach((b,idx)=>{
+    let type='full';
+    if(bands>1 && b){
+      const cyc=idx%(bands===2?4:6);
+      if(bands===2 && cyc===2) type='duo';
+      if(bands===3){ if(cyc===2) type='duo'; if(cyc===5) type='trio'; }
+    }
+    plan.push({type, text:b, ty});
+    if(pause && b && (idx+1)%pause===0 && idx<blocks.length-1)
+      plan.push({type:'full', text:'', ty});
+  });
+  return plan;
+}
+function genPreview(){
+  const plan=planPages();
+  const el=document.getElementById('genPrev');
+  if(!plan.length){el.textContent='Colle un texte pour voir comment il sera réparti.';return;}
+  const nb=plan.filter(p=>p.text).length, mute=plan.length-nb;
+  const besoin=plan.reduce((n,p)=>n+(p.type==='trio'?3:(p.type==='duo'?2:1)),0);
+  const dispo=(Object.keys(EXTRA).length||ALL.length);
+  const manque=besoin>dispo;
+  el.innerHTML = `<div style="color:${manque?'#e0a45c':'#9fe09f'};margin-bottom:.5rem">`+
+    `${plan.length} planches — ${nb} avec texte, ${mute} sans — `+
+    `${besoin} photos nécessaires, ${dispo} disponible(s)`+
+    (manque?` · il en manque ${besoin-dispo}, aucune n'est réutilisée`:``)+`</div>` + plan.map((p,i)=>{
+    const lab = (TYPES[p.type]||TYPES.full).lab;
+    const t = p.text
+      ? p.text.split('\n').map(v=>`<div style="padding-left:2.6rem">${v}</div>`).join('')
+      : '<div style="padding-left:2.6rem;opacity:.4">image seule, sans texte</div>';
+    return `<div style="margin-bottom:.5rem"><b style="color:#8A5A3E;font-weight:400">${String(i+1).padStart(2,'0')}</b>
+      <span style="opacity:.45;font-size:11px"> ${lab}</span>${t}</div>`;
+  }).join('');
+}
+function generate(){
+  const keys=Object.keys(EXTRA);
+  const pool = keys.length ? keys : ALL.map(String);
+  if(!pool.length){ alert("Choisis d'abord des photos."); return; }
+  const plan=planPages();
+  if(!plan.length){ alert('Écris un texte, ou choisis « là où je laisse une ligne vide » et laisse une ligne pour une image seule.'); return; }
+  const order = document.getElementById('genShuffle').checked
+    ? pool.slice().sort(()=>Math.random()-0.5) : pool.slice();
+  const besoin = plan.reduce((n,pl)=>n+needFor(pl.type),0);
+  if(besoin>order.length){
+    alert(`Cette proposition demande ${besoin} photos et tu n'en as que ${order.length}.\n\n`+
+      `Aucune photo n'est utilisée deux fois, donc il faut soit en ajouter `+
+      `${besoin-order.length} de plus, soit réduire le nombre de planches ou les mises en page.`);
+    return;
+  }
+  let pi=0; const take=n=>order.slice(pi,pi+=n);
+  const vop=parseFloat(document.getElementById('genVop').value);
+  const out=plan.map(pl=>{
+    const cnt = pl.type==='trio'?3:(pl.type==='duo'?2:1);
+    const ty = pl.text? pl.ty : 86;
+    return {type:pl.type, photos:take(cnt), pos:Array(cnt).fill('50% 45%'),
+      veil: pl.text?1:0, over: pl.text? pl.text.replace(/\n/g,'<br>') : '',
+      tx:50, ty, vmode:'bande', vlink:true,
+      vop, vsp:40, wd:78};
+  });
+  const f=document.getElementById('genFmt').value;
+  if(f){const [w,h]=f.split('x').map(Number); FMT={w,h}; document.getElementById('fmt').value=f; applyFormat();}
+  setGrain(document.getElementById('genGrain').value);
+  document.getElementById('grGlob').value=GRAIN;
+  PAGES=out; close_('gen'); render(); save(); window.scrollTo(0,0);
+}
+
+/* =====================  SAUVEGARDE  ===================== */
+const KEY='postgen-template';
+function state(){return {v:VERSION,pages:PAGES,gfs:GFS,grain:GRAIN,fmt:FMT,
+  grainsize:document.getElementById('grSize').value,
+  font:document.getElementById('fontSel').value,track:document.getElementById('trkSel').value};}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(state()));}catch(e){}}
+function dedupe(){
+  const seen=new Set();
+  PAGES.forEach(p=>{
+    p.photos=(p.photos||[]).map(n=>{
+      let v=String(n);
+      if(seen.has(v)){
+        const pool=[...Object.keys(EXTRA), ...ALL.map(String)];
+        v = pool.find(c=>!seen.has(c)) || v;
+      }
+      seen.add(v); return v;
+    });
+  });
+}
+function applyState(o){
+  if(o.pages) PAGES=o.pages;
+  if(o.fmt){FMT=o.fmt;}
+  if(o.gfs){GFS=o.gfs; document.getElementById('fsGlob').value=GFS;
+    document.getElementById('fsVal').textContent=Math.round(GFS*100)+'%';}
+  if(o.grain!==undefined){GRAIN=o.grain; document.getElementById('grGlob').value=GRAIN;
+    document.getElementById('grVal').textContent=Math.round(GRAIN*100)+'%';}
+  if(o.grainsize && ['fin','moyen','gros'].includes(o.grainsize))
+    document.getElementById('grSize').value=o.grainsize;
+  if(o.font){document.getElementById('fontSel').value=o.font; setFont(o.font);}
+  if(o.track){document.getElementById('trkSel').value=o.track; setTrack(o.track);}
+}
+function load(){try{
+  const s=localStorage.getItem(KEY); if(!s) return false;
+  const o=JSON.parse(s);
+  if(o.v!==VERSION){localStorage.removeItem(KEY); return false;}
+  applyState(o); return true;}catch(e){return false;}}
+function reset(){
+  if(!confirm("Revenir a la maquette d'origine ? Tes modifications non sauvegardees seront perdues.")) return;
+  try{localStorage.removeItem(KEY);}catch(e){}
+  location.reload();
+}
+function exportJSON(){
+  const b=new Blob([JSON.stringify(state(),null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(b);
+  a.download='maquette.json'; a.click();
+}
+document.getElementById('imp').addEventListener('change',ev=>{
+  const f=ev.target.files[0]; if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{try{applyState(JSON.parse(r.result)); applyFormat(); render(); save();}
+    catch(e){alert('Fichier illisible');}};
+  r.readAsText(f); ev.target.value='';
+});
+
+load();
+dedupe();
+setFont(document.getElementById('fontSel').value);
+refreshGrainTexture();
+setGrain(GRAIN); document.getElementById('fsGlob').value=GFS;
+document.getElementById('fsVal').textContent=Math.round(GFS*100)+'%';
+applyFormat();
+drawGrid();
+render();
+
+// les photos gardees reviennent des que la base repond
+phAll().then(saved=>{
+  let n=0;
+  Object.keys(saved).forEach(k=>{ if(!EXTRA[k]){ EXTRA[k]=saved[k]; n++; } });
+  if(n){ drawGrid(); render(); }
+});
+phAllFiles().then(saved=>{
+  Object.keys(saved).forEach(k=>{ if(!FILES[k]) FILES[k]=saved[k]; });
+  quality(); drawGrid();
+  // un original sans apercu : on refabrique l'apercu, sinon la planche reste vide
+  const sansApercu=Object.keys(FILES).filter(k=>!EXTRA[k]).map(k=>FILES[k]).filter(Boolean);
+  if(sansApercu.length) readImages(sansApercu, ()=>{ drawGrid(); render(); });
+});
+</script>
+</body>
+</html>

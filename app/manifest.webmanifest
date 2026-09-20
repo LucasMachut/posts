@@ -1,0 +1,17 @@
+{
+  "name": "Posts — planches Instagram",
+  "short_name": "Posts",
+  "description": "Générateur de planches Instagram de Lucas Machut",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#221f1e",
+  "theme_color": "#221f1e",
+  "lang": "fr",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

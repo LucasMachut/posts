@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Posts</title>
+<meta name="description" content="Générateur de planches Instagram — Lucas Machut">
+<meta name="theme-color" content="#221f1e">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Posts">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Jost:wght@200;300;400&family=Questrial&family=Josefin+Sans:wght@200;300&family=Newsreader:ital,opsz,wght@0,6..72,300;1,6..72,300&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<header id="top">
+  <span class="brand">posts</span>
+  <span id="pageInfo"></span>
+  <button id="menuBtn" title="menu" aria-label="menu">⋯</button>
+</header>
+
+<main id="stage"></main>
+
+<nav id="bar">
+  <button data-sheet="photo">photo</button>
+  <button data-sheet="texte">texte</button>
+  <button data-sheet="voile">voile</button>
+  <button data-sheet="page">planche</button>
+  <button data-sheet="style">style</button>
+  <button data-sheet="export">exporter</button>
+</nav>
+
+<div id="sheet">
+  <div class="sh-head"><span id="shTitle"></span><button id="shClose" aria-label="fermer">×</button></div>
+  <div id="shBody"></div>
+</div>
+
+<div id="modal"><div class="box" id="modalBox"></div></div>
+<div id="toast"></div>
+<div id="prog"><div id="progTxt">Préparation…</div><div class="bar"><i id="progBar"></i></div></div>
+<button id="quitClean">quitter l'aperçu</button>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
