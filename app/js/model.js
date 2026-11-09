@@ -21,7 +21,7 @@ export const LINE_H = 2.15;
 
 export function pageVide() {
   return { type: 'full', photos: [], pos: ['50% 50%'], veil: 1, text: '', tx: 50, ty: 86,
-    vmode: 'halo', vlink: true, vauto: true, vop: 0.7, wd: 78, fs: 1, al: 'center', col: 'light', wrap: true };
+    vmode: 'halo', vlink: true, vauto: true, vop: 0.3, wd: 78, fs: 1, al: 'center', col: 'light', wrap: true };
 }
 
 export function stripHTML(h) {

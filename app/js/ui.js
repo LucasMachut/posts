@@ -485,7 +485,7 @@ Le découpage choisi en dessous décide comment ils se répartissent."></textare
   <span class="lab">5. Format et rendu</span>
   <select id="genFmt"><option value="">garder le format actuel</option>${FORMATS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select>
   ${row('grain', range('genGrain', 0, 0.65, 0.01, S.grain || 0.25, pct(S.grain || 0.25)))}
-  ${row('voile', range('genVop', 0, 1, 0.02, 0.7, '70%'))}
+  ${row('voile', range('genVop', 0, 1, 0.02, 0.3, '30%'))}
   ${btns([['genGo', 'générer la proposition', 'go'], ['genCancel', 'annuler', 'sec']])}
   <p class="hint">Tout reste modifiable planche par planche ensuite. Générer remplace les planches actuelles.</p>`);
   const box = $('#modalBox');

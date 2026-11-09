@@ -1,6 +1,6 @@
 // Service worker : l'application fonctionne hors ligne une fois ouverte une premiere fois.
 // En ligne, le code est toujours pris sur le reseau (donc toujours a jour) ; hors ligne, depuis le cache.
-const V = 'posts-v3-2';
+const V = 'posts-v3-3';
 const SHELL = ['./', './index.html', './css/app.css', './manifest.webmanifest',
   './js/main.js', './js/ui.js', './js/render.js', './js/state.js', './js/model.js', './js/photos.js',
   './js/gestures.js', './js/geometry.js', './js/veil.js', './js/grain.js', './js/export.js', './js/generator.js',
