@@ -55,3 +55,6 @@ L'app recharge d'elle-même la nouvelle version à l'ouverture suivante.
 - Alignement gauche / centre / droite dans le panneau « texte ».
 - Une maquette `.json` de l'ancien générateur se recharge dans la nouvelle app (menu ⋯). Les photos
   sont à remettre depuis la banque, elles sont reconnues par leur nom de fichier.
+- Projets : chaque album ou post a ses planches et sa propre banque de photos (nom en haut, ou menu ⋯ → projets).
+  « Recharger une maquette » crée un nouveau projet au lieu d'écraser celui qui est ouvert.
+  À la première ouverture, l'ancienne sauvegarde et l'ancienne banque deviennent « Projet 1 ».

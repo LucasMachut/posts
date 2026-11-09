@@ -1,5 +1,5 @@
 // Interface : barre du bas, panneaux, menu, generateur, export.
-import { S, save, clear, snapshot, applyState } from './state.js';
+import { S, save, clear, snapshot, applyState, current, projects, pagesCount, openProject, createProject, renameProject, deleteProject } from './state.js';
 import * as P from './photos.js';
 import * as R from './render.js';
 import { TYPES, FONTS, TRACKS, FORMATS, pageVide, needFor, VERSION } from './model.js';
@@ -35,7 +35,12 @@ function bindChips(root, name, fn) {
     fn(b.dataset.v);
   }));
 }
+function projInfo() {
+  const p = current(), b = $('#top .brand');
+  if (b) b.textContent = 'posts · ' + (p ? p.name : '');
+}
 function pageInfo() {
+  projInfo();
   const n = S.pages.length;
   $('#pageInfo').textContent = n ? `planche ${R.getActive() + 1} / ${n}` : '';
 }
@@ -354,21 +359,23 @@ export function closeModal() { $('#modal').classList.remove('open'); }
 function openMenu() {
   const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
   modal(`<h2>Menu</h2><div class="menu">
+    <button data-m="proj">projets</button>
     <button data-m="gen">nouvelle proposition</button>
     <button data-m="add">+ page vide à la fin</button>
     <button data-m="save">sauver la maquette (.json)</button>
-    <label class="mbtn">recharger une maquette<input type="file" id="imp" accept=".json,application/json"></label>
+    <label class="mbtn">recharger une maquette (nouveau projet)<input type="file" id="imp" accept=".json,application/json"></label>
     <button data-m="clean">aperçu propre</button>
     <button data-m="help">comment ça marche</button>
     <button data-m="reset" class="danger">réinitialiser (efface les planches)</button>
-    <div class="hint">version ${VERSION} · ${P.count()} photo(s) en banque${standalone ? '' : `<br>Sur iPhone : bouton Partager de Safari → « Sur l'écran d'accueil » pour l'installer comme une application.`}</div>
+    <div class="hint">projet « ${esc(current().name)} » · ${P.count()} photo(s) dans sa banque · version ${VERSION}${standalone ? '' : `<br>Sur iPhone : bouton Partager de Safari → « Sur l'écran d'accueil » pour l'installer comme une application.`}</div>
   </div>`);
   const box = $('#modalBox');
   $$('[data-m]', box).forEach(el => el.addEventListener('click', () => {
     const m = el.dataset.m; closeModal();
+    if (m === 'proj') openProjects();
     if (m === 'gen') openGen();
     if (m === 'add') addPage();
-    if (m === 'save') X.download(new Blob([JSON.stringify(snapshot(), null, 2)], { type: 'application/json' }), 'maquette.json');
+    if (m === 'save') X.download(new Blob([JSON.stringify(snapshot(), null, 2)], { type: 'application/json' }), fileName(current().name) + '.json');
     if (m === 'clean') cleanMode(true);
     if (m === 'help') openHelp();
     if (m === 'reset') {
@@ -379,11 +386,61 @@ function openMenu() {
   on(box, 'imp', 'change', el => {
     const f = el.files[0]; el.value = ''; if (!f) return;
     const r = new FileReader();
-    r.onload = () => {
-      try { applyState(JSON.parse(r.result)); R.applyTypo(); R.applyFormat(); R.renderAll(); save(); closeModal(); toast('Maquette rechargée.'); }
-      catch (e) { toast('Fichier illisible.'); }
+    r.onload = async () => {
+      let o; try { o = JSON.parse(r.result); } catch (e) { toast('Fichier illisible.'); return; }
+      const name = f.name.replace(/\.json$/i, '').replace(/[-_]+/g, ' ').trim();
+      createProject(name, o);
+      await afterSwitch();
+      toast(`Projet « ${current().name} » créé. Sa banque est vide : ajoute ses photos dans « photo ».`, 7000);
     };
     r.readAsText(f);
+  });
+}
+
+/* ---------- projets ---------- */
+const fileName = s => String(s || 'maquette').replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'maquette';
+async function afterSwitch() {
+  const p = current();
+  P.setProject(p.id, p.legacy);
+  closeModal(); closeSheet(); SEL = { pi: 0, i: 0 };
+  R.applyTypo(); R.applyFormat(); R.applyGrain(); R.setActive(0); R.renderAll();
+  await P.restore();
+  R.renderAll();
+}
+async function openProjects() {
+  const cur = current().id, list = projects();
+  const counts = await Promise.all(list.map(p => P.countFor(p.id, p.legacy)));
+  const date = ts => ts ? new Date(ts).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
+  modal(`<h2>Projets</h2><div class="projs">${list.map((p, k) => `
+    <div class="proj${p.id === cur ? ' cur' : ''}" data-id="${esc(p.id)}">
+      <button class="pmain" data-pa="open"><b>${esc(p.name)}</b>${p.id === cur ? ' <i>ouvert</i>' : ''}
+        <span>${pagesCount(p.id)} planche(s) · ${counts[k]} photo(s) · ${date(p.upd)}</span></button>
+      <div class="pacts"><button data-pa="ren">renommer</button><button data-pa="del" class="danger">supprimer</button></div>
+    </div>`).join('')}</div>
+    <div class="menu"><button id="newProj">+ nouveau projet</button></div>
+    <div class="hint">Chaque projet a ses planches et sa propre banque de photos.</div>`);
+  const box = $('#modalBox');
+  $$('.proj', box).forEach(el => {
+    const id = el.dataset.id, p = list.find(q => q.id === id);
+    $$('[data-pa]', el).forEach(b => b.addEventListener('click', async () => {
+      const a = b.dataset.pa;
+      if (a === 'open') { if (id !== current().id) { openProject(id); await afterSwitch(); toast(`Projet « ${p.name} » ouvert.`); } else closeModal(); }
+      if (a === 'ren') {
+        const n = prompt('Nouveau nom du projet :', p.name); if (n === null || !n.trim()) return;
+        renameProject(id, n); projInfo(); openProjects();
+      }
+      if (a === 'del') {
+        if (!confirm(`Supprimer le projet « ${p.name} » ?\n\nSes planches et sa banque de photos sont effacées de cet appareil. Tes fichiers d'origine ne sont pas touchés.`)) return;
+        const wasCur = id === current().id;
+        await P.dropProject(id, p.legacy); deleteProject(id);
+        if (wasCur) await afterSwitch(); else projInfo();
+        openProjects();
+      }
+    }));
+  });
+  on(box, 'newProj', 'click', async () => {
+    const n = prompt('Nom du nouveau projet :', ''); if (n === null || !n.trim()) return;
+    createProject(n); await afterSwitch(); toast(`Projet « ${current().name} » créé.`);
   });
 }
 function openHelp() {
@@ -397,8 +454,12 @@ function openHelp() {
   <p><b>Voile.</b> La zone sombre sous le texte, pour le contraste. Elle suit le texte tant que tu ne la détaches pas.</p>
   <p><b>Exporter.</b> Prépare les JPEG en pleine résolution, puis « enregistrer dans Photos » sur l'iPhone,
   ou un ZIP sur l'ordinateur. Ensuite tu publies depuis Instagram.</p>
+  <p><b>Projets.</b> Chaque album ou post est un projet, avec ses planches et sa propre banque de photos :
+  la banque ne montre que les photos du projet ouvert. Touche le nom en haut, ou « projets » dans le menu,
+  pour passer de l'un à l'autre, en créer un, le renommer ou le supprimer. « Recharger une maquette » crée
+  un nouveau projet au nom du fichier, sans toucher à celui qui est ouvert.</p>
   <p><b>Sauvegarde.</b> Tout est gardé sur cet appareil, photos comprises. « Sauver la maquette » fait un fichier
-  .json des planches, sans les photos.</p>
+  .json des planches du projet ouvert, sans les photos.</p>
   <p class="hint">Touche en dehors pour fermer.</p>`);
 }
 function openGen() {
@@ -473,6 +534,8 @@ export function initUI() {
   $$('#bar button').forEach(b => b.addEventListener('click', () => { const k = b.dataset.sheet; SHEET === k ? closeSheet() : openSheet(k); }));
   $('#shClose').addEventListener('click', closeSheet);
   $('#menuBtn').addEventListener('click', openMenu);
+  $('#top .brand').addEventListener('click', openProjects);
+  projInfo();
   $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
   $('#quitClean').addEventListener('click', () => cleanMode(false));
   $('#stage').addEventListener('click', e => {

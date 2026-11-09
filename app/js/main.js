@@ -1,11 +1,12 @@
 // Demarrage de l'application.
-import { load } from './state.js';
+import { load, current } from './state.js';
 import * as P from './photos.js';
 import * as R from './render.js';
 import { initUI, toast } from './ui.js';
 
 (async () => {
   load();
+  { const p = current(); P.setProject(p.id, p.legacy); }
   R.applyTypo();
   R.applyFormat();
   initUI();

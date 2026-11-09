@@ -16,7 +16,7 @@ button{cursor:pointer}
   padding-top:var(--sat);height:calc(46px + var(--sat));display:flex;align-items:center;gap:.6rem;
   padding-left:14px;padding-right:6px;border-bottom:1px solid var(--line);font-size:12px}
 #top .brand{letter-spacing:.18em;text-transform:uppercase;opacity:.55;font-weight:300}
-#pageInfo{margin-left:auto;opacity:.8}
+#pageInfo{margin-left:auto;opacity:.8;white-space:nowrap;flex-shrink:0}
 #menuBtn{background:none;border:0;color:var(--txt);font-size:22px;line-height:1;padding:8px 12px}
 
 /* ---------- planches ---------- */
@@ -141,6 +141,17 @@ button.sq{background:var(--ui3);border:1px solid var(--line);color:var(--txt);bo
 .menu button,.menu .mbtn{background:var(--ui3);border:1px solid var(--line);color:var(--txt);border-radius:6px;padding:.75rem 1rem;text-align:left;font-size:13px;position:relative;overflow:hidden;cursor:pointer}
 .menu .mbtn input{position:absolute;inset:0;opacity:0;width:100%;cursor:pointer}
 .menu button.danger{color:#e08a7a}
+#top .brand{cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1 1 auto}
+.projs{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+.proj{background:var(--ui3);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.proj.cur{border-color:var(--brasa)}
+.proj .pmain{display:block;width:100%;background:none;border:0;color:var(--txt);text-align:left;padding:.75rem 1rem .4rem;font-size:13px;cursor:pointer}
+.proj .pmain b{font-weight:400}
+.proj .pmain i{color:var(--brasa);font-style:normal;font-size:11px;margin-left:.4rem}
+.proj .pmain span{display:block;opacity:.55;font-size:11px;margin-top:.2rem}
+.proj .pacts{display:flex;gap:6px;padding:0 1rem .6rem}
+.proj .pacts button{background:none;border:1px solid var(--line);color:var(--txt);border-radius:5px;padding:.35rem .7rem;font-size:11px;cursor:pointer}
+.proj .pacts button.danger{color:#e08a7a}
 
 /* ---------- toast, progression ---------- */
 #toast{position:fixed;left:50%;bottom:calc(var(--bar) + var(--sab) + 14px);transform:translateX(-50%) translateY(20px);z-index:95;

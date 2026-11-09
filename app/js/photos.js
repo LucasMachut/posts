@@ -22,34 +22,64 @@ function open() {
   });
   return dbp;
 }
+/* ---------- une banque par projet ----------
+   Les cles sont « <projet>/<nom> ». Le projet issu de la migration (legacy) garde les
+   anciennes cles sans prefixe : rien n'est recopie, l'ancienne banque devient la sienne. */
+let PROJ = { id: '', legacy: true };
+export function setProject(id, legacy) { PROJ = { id: String(id), legacy: !!legacy }; }
+const belongs = (k, pr) => pr.legacy ? !String(k).includes('/') : String(k).startsWith(pr.id + '/');
+const fk = (n, pr = PROJ) => pr.legacy ? String(n) : pr.id + '/' + n;
+const short = (k, pr = PROJ) => pr.legacy ? String(k) : String(k).slice(pr.id.length + 1);
+
 async function put(store, k, v) {
   const db = await open(); if (!db) return;
-  try { db.transaction(store, 'readwrite').objectStore(store).put(v, k); } catch (e) {}
+  try { db.transaction(store, 'readwrite').objectStore(store).put(v, fk(k)); } catch (e) {}
 }
 async function del(store, k) {
   const db = await open(); if (!db) return;
-  try { db.transaction(store, 'readwrite').objectStore(store).delete(k); } catch (e) {}
+  try { db.transaction(store, 'readwrite').objectStore(store).delete(fk(k)); } catch (e) {}
 }
-async function all(store) {
-  const db = await open(); if (!db) return {};
+// cles completes d'un projet dans un magasin
+async function keysOf(store, pr) {
+  const db = await open(); if (!db) return [];
   return new Promise(res => {
     try {
-      const out = {}, c = db.transaction(store, 'readonly').objectStore(store).openCursor();
-      c.onsuccess = e => { const cur = e.target.result; if (!cur) { res(out); return; } out[cur.key] = cur.value; cur.continue(); };
-      c.onerror = () => res({});
-    } catch (e) { res({}); }
+      const out = [], c = db.transaction(store, 'readonly').objectStore(store).openKeyCursor();
+      c.onsuccess = e => { const cur = e.target.result; if (!cur) { res(out); return; } if (belongs(cur.key, pr)) out.push(cur.key); cur.continue(); };
+      c.onerror = () => res([]);
+    } catch (e) { res([]); }
   });
 }
-async function clearStores() {
+async function getMany(store, keys) {
+  const db = await open(); if (!db || !keys.length) return {};
+  return new Promise(res => {
+    const out = {};
+    try {
+      const os = db.transaction(store, 'readonly').objectStore(store);
+      let left = keys.length;
+      keys.forEach(k => { const r = os.get(k); r.onsuccess = () => { out[k] = r.result; if (!--left) res(out); }; r.onerror = () => { if (!--left) res(out); }; });
+    } catch (e) { res(out); }
+  });
+}
+async function dropKeys(pr) {
   const db = await open(); if (!db) return;
+  const kf = await keysOf('fotos', pr), ko = await keysOf('originais', pr);
   await new Promise(res => {
     try {
       const t = db.transaction(['fotos', 'originais'], 'readwrite');
-      t.objectStore('fotos').clear(); t.objectStore('originais').clear();
+      kf.forEach(k => t.objectStore('fotos').delete(k)); ko.forEach(k => t.objectStore('originais').delete(k));
       t.oncomplete = res; t.onerror = res; t.onabort = res;
     } catch (e) { res(); }
   });
 }
+// nombre de photos d'un projet, pour la liste des projets
+export async function countFor(id, legacy) {
+  const pr = { id: String(id), legacy: !!legacy };
+  const a = await keysOf('fotos', pr), b = await keysOf('originais', pr);
+  return new Set([...a, ...b]).size;
+}
+// efface la banque d'un projet (jamais les fichiers de l'appareil)
+export async function dropProject(id, legacy) { await dropKeys({ id: String(id), legacy: !!legacy }); }
 
 export const names   = () => Object.keys(PREV).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 export const urlFor  = n => PREV[n] || '';
@@ -117,15 +147,25 @@ export async function remove(name) {
   delete PREV[name]; delete ORIG[name]; delete NAT[name];
   await del('fotos', name); await del('originais', name);
 }
-export async function clearAll() {
+function forget() {
   Object.keys(PREV).forEach(k => { try { URL.revokeObjectURL(PREV[k]); } catch (e) {} delete PREV[k]; });
   Object.keys(ORIG).forEach(k => delete ORIG[k]);
   Object.keys(NAT).forEach(k => delete NAT[k]);
-  await clearStores();
 }
-// au demarrage : les photos gardees reviennent
+// vide la banque du projet ouvert seulement
+export async function clearAll() {
+  forget();
+  await dropKeys(PROJ);
+}
+// au demarrage ou en changeant de projet : les photos du projet ouvert reviennent, et elles seules
 export async function restore() {
-  const prev = await all('fotos');
+  forget();
+  const pr = PROJ;
+  const kf = await keysOf('fotos', pr);
+  const prevFull = await getMany('fotos', kf);
+  if (pr !== PROJ) return 0;                                // projet change entre-temps
+  const prev = {};
+  Object.keys(prevFull).forEach(k => { prev[short(k, pr)] = prevFull[k]; });
   for (const k of Object.keys(prev)) {
     const v = prev[k];
     try {
@@ -134,8 +174,10 @@ export async function restore() {
       if (!(v instanceof Blob)) put('fotos', k, blob);     // ancienne banque en dataURL : on convertit
     } catch (e) {}
   }
-  const org = await all('originais');
-  for (const k of Object.keys(org)) if (org[k] instanceof Blob) ORIG[k] = org[k];
+  const ko = await keysOf('originais', pr);
+  const orgFull = await getMany('originais', ko);
+  if (pr !== PROJ) return 0;
+  for (const k of Object.keys(orgFull)) if (orgFull[k] instanceof Blob) ORIG[short(k, pr)] = orgFull[k];
   // un original sans apercu : on refabrique l'apercu
   for (const k of Object.keys(ORIG)) {
     if (PREV[k]) continue;

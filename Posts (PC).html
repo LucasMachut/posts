@@ -34,7 +34,7 @@ button{cursor:pointer}
   padding-top:var(--sat);height:calc(46px + var(--sat));display:flex;align-items:center;gap:.6rem;
   padding-left:14px;padding-right:6px;border-bottom:1px solid var(--line);font-size:12px}
 #top .brand{letter-spacing:.18em;text-transform:uppercase;opacity:.55;font-weight:300}
-#pageInfo{margin-left:auto;opacity:.8}
+#pageInfo{margin-left:auto;opacity:.8;white-space:nowrap;flex-shrink:0}
 #menuBtn{background:none;border:0;color:var(--txt);font-size:22px;line-height:1;padding:8px 12px}
 
 /* ---------- planches ---------- */
@@ -159,6 +159,17 @@ button.sq{background:var(--ui3);border:1px solid var(--line);color:var(--txt);bo
 .menu button,.menu .mbtn{background:var(--ui3);border:1px solid var(--line);color:var(--txt);border-radius:6px;padding:.75rem 1rem;text-align:left;font-size:13px;position:relative;overflow:hidden;cursor:pointer}
 .menu .mbtn input{position:absolute;inset:0;opacity:0;width:100%;cursor:pointer}
 .menu button.danger{color:#e08a7a}
+#top .brand{cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1 1 auto}
+.projs{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+.proj{background:var(--ui3);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.proj.cur{border-color:var(--brasa)}
+.proj .pmain{display:block;width:100%;background:none;border:0;color:var(--txt);text-align:left;padding:.75rem 1rem .4rem;font-size:13px;cursor:pointer}
+.proj .pmain b{font-weight:400}
+.proj .pmain i{color:var(--brasa);font-style:normal;font-size:11px;margin-left:.4rem}
+.proj .pmain span{display:block;opacity:.55;font-size:11px;margin-top:.2rem}
+.proj .pacts{display:flex;gap:6px;padding:0 1rem .6rem}
+.proj .pacts button{background:none;border:1px solid var(--line);color:var(--txt);border-radius:5px;padding:.35rem .7rem;font-size:11px;cursor:pointer}
+.proj .pacts button.danger{color:#e08a7a}
 
 /* ---------- toast, progression ---------- */
 #toast{position:fixed;left:50%;bottom:calc(var(--bar) + var(--sab) + 14px);transform:translateX(-50%) translateY(20px);z-index:95;
@@ -283,13 +294,17 @@ return { get VERSION() { return VERSION; }, get TYPES() { return TYPES; }, get n
 })();
 
 const __m_state = (() => {
-// Etat global + sauvegarde locale (localStorage), avec migration des anciennes maquettes.
+// Etat global + sauvegarde locale (localStorage), par projet, avec migration des anciennes maquettes.
+// Chaque projet a ses planches (cle postgen-v3:<id>) et sa banque de photos (voir photos.js).
+// Le tout premier projet, cree a la migration, reprend l'ancienne sauvegarde et l'ancienne banque.
 const { VERSION, migratePage } = __m_model;
-const S = {
+const DEFAULTS = () => ({
   pages: [], fmt: { w: 1080, h: 1350 }, gfs: 1, grain: 0, grainsize: 'moyen',
   font: 'Special Elite', track: '.12em',
-};
-const KEY = 'postgen-v3', OLDKEY = 'postgen-template';
+});
+const S = DEFAULTS();
+const OLD3 = 'postgen-v3', OLDKEY = 'postgen-template', IDX = 'postgen-projets';
+const keyOf = id => 'postgen-v3:' + id;
 
 function snapshot() {
   return { v: VERSION, pages: S.pages, fmt: S.fmt, gfs: S.gfs, grain: S.grain,
@@ -305,24 +320,92 @@ function applyState(o) {
   if (o.font) S.font = o.font;
   if (o.track) S.track = o.track;
 }
-let t = null;
-function save() {
-  clearTimeout(t);
-  t = setTimeout(() => { try { localStorage.setItem(KEY, JSON.stringify(snapshot())); } catch (e) {} }, 120);
+function resetS() { Object.assign(S, DEFAULTS()); }
+
+/* ---------- projets ---------- */
+let IX = null;   // { cur, list: [{ id, name, upd, legacy }] }
+function readIdx() { try { return JSON.parse(localStorage.getItem(IDX) || 'null'); } catch (e) { return null; } }
+function writeIdx() { try { localStorage.setItem(IDX, JSON.stringify(IX)); } catch (e) {} }
+const newId = () => 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+const projects = () => [...IX.list].sort((a, b) => (b.upd || 0) - (a.upd || 0));
+const current  = () => IX.list.find(p => p.id === IX.cur);
+function pagesCount(id) {
+  if (id === IX.cur) return S.pages.length;
+  try { const o = JSON.parse(localStorage.getItem(keyOf(id)) || 'null'); return o && Array.isArray(o.pages) ? o.pages.length : 0; }
+  catch (e) { return 0; }
 }
-function load() {
+
+// premiere ouverture : l'ancienne sauvegarde devient « Projet 1 », sans toucher aux anciennes cles
+function migrate() {
+  IX = readIdx();
+  if (IX && Array.isArray(IX.list) && IX.list.length) {
+    if (!IX.list.some(p => p.id === IX.cur)) IX.cur = IX.list[0].id;
+    return;
+  }
+  const id = 'p1';
+  IX = { cur: id, list: [{ id, name: 'Projet 1', upd: Date.now(), legacy: true }] };
   try {
-    const s = localStorage.getItem(KEY) || localStorage.getItem(OLDKEY);
+    const old = localStorage.getItem(OLD3) || localStorage.getItem(OLDKEY);
+    if (old && !localStorage.getItem(keyOf(id))) localStorage.setItem(keyOf(id), old);
+  } catch (e) {}
+  writeIdx();
+}
+
+let t = null;
+function writeNow() {
+  clearTimeout(t); t = null;
+  try { localStorage.setItem(keyOf(IX.cur), JSON.stringify(snapshot())); } catch (e) {}
+  const p = current(); if (p) { p.upd = Date.now(); writeIdx(); }
+}
+function save() { clearTimeout(t); t = setTimeout(writeNow, 120); }
+function flush() { if (t) writeNow(); }
+
+function load() {
+  migrate();
+  resetS();
+  try {
+    const s = localStorage.getItem(keyOf(IX.cur));
     if (!s) return false;
     applyState(JSON.parse(s));
     return true;
   } catch (e) { return false; }
 }
+// efface les planches du projet ouvert seulement
 function clear() {
-  try { localStorage.removeItem(KEY); localStorage.removeItem(OLDKEY); } catch (e) {}
+  try { localStorage.removeItem(keyOf(IX.cur)); } catch (e) {}
 }
 
-return { get S() { return S; }, get snapshot() { return snapshot; }, get applyState() { return applyState; }, get save() { return save; }, get load() { return load; }, get clear() { return clear; } };
+function openProject(id) {
+  flush();
+  if (!IX.list.some(p => p.id === id)) return false;
+  IX.cur = id; writeIdx();
+  return load();
+}
+function createProject(name, state) {
+  flush();
+  const id = newId();
+  IX.list.push({ id, name: String(name || 'Sans nom').trim() || 'Sans nom', upd: Date.now() });
+  IX.cur = id; writeIdx();
+  resetS();
+  if (state) applyState(state);
+  writeNow();
+  return id;
+}
+function renameProject(id, name) {
+  const p = IX.list.find(q => q.id === id); if (!p) return;
+  p.name = String(name || '').trim() || p.name; writeIdx();
+}
+// retire le projet de la liste et ses planches ; la banque est videe par l'appelant (photos.js)
+function deleteProject(id) {
+  IX.list = IX.list.filter(p => p.id !== id);
+  try { localStorage.removeItem(keyOf(id)); } catch (e) {}
+  if (!IX.list.length) IX.list.push({ id: newId(), name: 'Projet 1', upd: Date.now() });
+  if (IX.cur === id) IX.cur = projects()[0].id;
+  writeIdx();
+}
+
+return { get S() { return S; }, get snapshot() { return snapshot; }, get applyState() { return applyState; }, get projects() { return projects; }, get current() { return current; }, get pagesCount() { return pagesCount; }, get save() { return save; }, get flush() { return flush; }, get load() { return load; }, get clear() { return clear; }, get openProject() { return openProject; }, get createProject() { return createProject; }, get renameProject() { return renameProject; }, get deleteProject() { return deleteProject; } };
 })();
 
 const __m_geometry = (() => {
@@ -445,34 +528,64 @@ function open() {
   });
   return dbp;
 }
+/* ---------- une banque par projet ----------
+   Les cles sont « <projet>/<nom> ». Le projet issu de la migration (legacy) garde les
+   anciennes cles sans prefixe : rien n'est recopie, l'ancienne banque devient la sienne. */
+let PROJ = { id: '', legacy: true };
+function setProject(id, legacy) { PROJ = { id: String(id), legacy: !!legacy }; }
+const belongs = (k, pr) => pr.legacy ? !String(k).includes('/') : String(k).startsWith(pr.id + '/');
+const fk = (n, pr = PROJ) => pr.legacy ? String(n) : pr.id + '/' + n;
+const short = (k, pr = PROJ) => pr.legacy ? String(k) : String(k).slice(pr.id.length + 1);
+
 async function put(store, k, v) {
   const db = await open(); if (!db) return;
-  try { db.transaction(store, 'readwrite').objectStore(store).put(v, k); } catch (e) {}
+  try { db.transaction(store, 'readwrite').objectStore(store).put(v, fk(k)); } catch (e) {}
 }
 async function del(store, k) {
   const db = await open(); if (!db) return;
-  try { db.transaction(store, 'readwrite').objectStore(store).delete(k); } catch (e) {}
+  try { db.transaction(store, 'readwrite').objectStore(store).delete(fk(k)); } catch (e) {}
 }
-async function all(store) {
-  const db = await open(); if (!db) return {};
+// cles completes d'un projet dans un magasin
+async function keysOf(store, pr) {
+  const db = await open(); if (!db) return [];
   return new Promise(res => {
     try {
-      const out = {}, c = db.transaction(store, 'readonly').objectStore(store).openCursor();
-      c.onsuccess = e => { const cur = e.target.result; if (!cur) { res(out); return; } out[cur.key] = cur.value; cur.continue(); };
-      c.onerror = () => res({});
-    } catch (e) { res({}); }
+      const out = [], c = db.transaction(store, 'readonly').objectStore(store).openKeyCursor();
+      c.onsuccess = e => { const cur = e.target.result; if (!cur) { res(out); return; } if (belongs(cur.key, pr)) out.push(cur.key); cur.continue(); };
+      c.onerror = () => res([]);
+    } catch (e) { res([]); }
   });
 }
-async function clearStores() {
+async function getMany(store, keys) {
+  const db = await open(); if (!db || !keys.length) return {};
+  return new Promise(res => {
+    const out = {};
+    try {
+      const os = db.transaction(store, 'readonly').objectStore(store);
+      let left = keys.length;
+      keys.forEach(k => { const r = os.get(k); r.onsuccess = () => { out[k] = r.result; if (!--left) res(out); }; r.onerror = () => { if (!--left) res(out); }; });
+    } catch (e) { res(out); }
+  });
+}
+async function dropKeys(pr) {
   const db = await open(); if (!db) return;
+  const kf = await keysOf('fotos', pr), ko = await keysOf('originais', pr);
   await new Promise(res => {
     try {
       const t = db.transaction(['fotos', 'originais'], 'readwrite');
-      t.objectStore('fotos').clear(); t.objectStore('originais').clear();
+      kf.forEach(k => t.objectStore('fotos').delete(k)); ko.forEach(k => t.objectStore('originais').delete(k));
       t.oncomplete = res; t.onerror = res; t.onabort = res;
     } catch (e) { res(); }
   });
 }
+// nombre de photos d'un projet, pour la liste des projets
+async function countFor(id, legacy) {
+  const pr = { id: String(id), legacy: !!legacy };
+  const a = await keysOf('fotos', pr), b = await keysOf('originais', pr);
+  return new Set([...a, ...b]).size;
+}
+// efface la banque d'un projet (jamais les fichiers de l'appareil)
+async function dropProject(id, legacy) { await dropKeys({ id: String(id), legacy: !!legacy }); }
 
 const names   = () => Object.keys(PREV).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 const urlFor  = n => PREV[n] || '';
@@ -540,15 +653,25 @@ async function remove(name) {
   delete PREV[name]; delete ORIG[name]; delete NAT[name];
   await del('fotos', name); await del('originais', name);
 }
-async function clearAll() {
+function forget() {
   Object.keys(PREV).forEach(k => { try { URL.revokeObjectURL(PREV[k]); } catch (e) {} delete PREV[k]; });
   Object.keys(ORIG).forEach(k => delete ORIG[k]);
   Object.keys(NAT).forEach(k => delete NAT[k]);
-  await clearStores();
 }
-// au demarrage : les photos gardees reviennent
+// vide la banque du projet ouvert seulement
+async function clearAll() {
+  forget();
+  await dropKeys(PROJ);
+}
+// au demarrage ou en changeant de projet : les photos du projet ouvert reviennent, et elles seules
 async function restore() {
-  const prev = await all('fotos');
+  forget();
+  const pr = PROJ;
+  const kf = await keysOf('fotos', pr);
+  const prevFull = await getMany('fotos', kf);
+  if (pr !== PROJ) return 0;                                // projet change entre-temps
+  const prev = {};
+  Object.keys(prevFull).forEach(k => { prev[short(k, pr)] = prevFull[k]; });
   for (const k of Object.keys(prev)) {
     const v = prev[k];
     try {
@@ -557,8 +680,10 @@ async function restore() {
       if (!(v instanceof Blob)) put('fotos', k, blob);     // ancienne banque en dataURL : on convertit
     } catch (e) {}
   }
-  const org = await all('originais');
-  for (const k of Object.keys(org)) if (org[k] instanceof Blob) ORIG[k] = org[k];
+  const ko = await keysOf('originais', pr);
+  const orgFull = await getMany('originais', ko);
+  if (pr !== PROJ) return 0;
+  for (const k of Object.keys(orgFull)) if (orgFull[k] instanceof Blob) ORIG[short(k, pr)] = orgFull[k];
   // un original sans apercu : on refabrique l'apercu
   for (const k of Object.keys(ORIG)) {
     if (PREV[k]) continue;
@@ -567,7 +692,7 @@ async function restore() {
   return Object.keys(PREV).length;
 }
 
-return { get names() { return names; }, get urlFor() { return urlFor; }, get hasPrev() { return hasPrev; }, get hasOrig() { return hasOrig; }, get origFor() { return origFor; }, get natOf() { return natOf; }, get count() { return count; }, get loadImage() { return loadImage; }, get keyOf() { return keyOf; }, get addFiles() { return addFiles; }, get remove() { return remove; }, get clearAll() { return clearAll; }, get restore() { return restore; } };
+return { get setProject() { return setProject; }, get countFor() { return countFor; }, get dropProject() { return dropProject; }, get names() { return names; }, get urlFor() { return urlFor; }, get hasPrev() { return hasPrev; }, get hasOrig() { return hasOrig; }, get origFor() { return origFor; }, get natOf() { return natOf; }, get count() { return count; }, get loadImage() { return loadImage; }, get keyOf() { return keyOf; }, get addFiles() { return addFiles; }, get remove() { return remove; }, get clearAll() { return clearAll; }, get restore() { return restore; } };
 })();
 
 const __m_gestures = (() => {
@@ -1221,7 +1346,7 @@ return { get cutText() { return cutText; }, get planPages() { return planPages; 
 
 const __m_ui = (() => {
 // Interface : barre du bas, panneaux, menu, generateur, export.
-const { S, save, clear, snapshot, applyState } = __m_state;
+const { S, save, clear, snapshot, applyState, current, projects, pagesCount, openProject, createProject, renameProject, deleteProject } = __m_state;
 const P = __m_photos;
 const R = __m_render;
 const { TYPES, FONTS, TRACKS, FORMATS, pageVide, needFor, VERSION } = __m_model;
@@ -1256,7 +1381,12 @@ function bindChips(root, name, fn) {
     fn(b.dataset.v);
   }));
 }
+function projInfo() {
+  const p = current(), b = $('#top .brand');
+  if (b) b.textContent = 'posts · ' + (p ? p.name : '');
+}
 function pageInfo() {
+  projInfo();
   const n = S.pages.length;
   $('#pageInfo').textContent = n ? `planche ${R.getActive() + 1} / ${n}` : '';
 }
@@ -1575,21 +1705,23 @@ function closeModal() { $('#modal').classList.remove('open'); }
 function openMenu() {
   const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
   modal(`<h2>Menu</h2><div class="menu">
+    <button data-m="proj">projets</button>
     <button data-m="gen">nouvelle proposition</button>
     <button data-m="add">+ page vide à la fin</button>
     <button data-m="save">sauver la maquette (.json)</button>
-    <label class="mbtn">recharger une maquette<input type="file" id="imp" accept=".json,application/json"></label>
+    <label class="mbtn">recharger une maquette (nouveau projet)<input type="file" id="imp" accept=".json,application/json"></label>
     <button data-m="clean">aperçu propre</button>
     <button data-m="help">comment ça marche</button>
     <button data-m="reset" class="danger">réinitialiser (efface les planches)</button>
-    <div class="hint">version ${VERSION} · ${P.count()} photo(s) en banque${standalone ? '' : `<br>Sur iPhone : bouton Partager de Safari → « Sur l'écran d'accueil » pour l'installer comme une application.`}</div>
+    <div class="hint">projet « ${esc(current().name)} » · ${P.count()} photo(s) dans sa banque · version ${VERSION}${standalone ? '' : `<br>Sur iPhone : bouton Partager de Safari → « Sur l'écran d'accueil » pour l'installer comme une application.`}</div>
   </div>`);
   const box = $('#modalBox');
   $$('[data-m]', box).forEach(el => el.addEventListener('click', () => {
     const m = el.dataset.m; closeModal();
+    if (m === 'proj') openProjects();
     if (m === 'gen') openGen();
     if (m === 'add') addPage();
-    if (m === 'save') X.download(new Blob([JSON.stringify(snapshot(), null, 2)], { type: 'application/json' }), 'maquette.json');
+    if (m === 'save') X.download(new Blob([JSON.stringify(snapshot(), null, 2)], { type: 'application/json' }), fileName(current().name) + '.json');
     if (m === 'clean') cleanMode(true);
     if (m === 'help') openHelp();
     if (m === 'reset') {
@@ -1600,11 +1732,61 @@ function openMenu() {
   on(box, 'imp', 'change', el => {
     const f = el.files[0]; el.value = ''; if (!f) return;
     const r = new FileReader();
-    r.onload = () => {
-      try { applyState(JSON.parse(r.result)); R.applyTypo(); R.applyFormat(); R.renderAll(); save(); closeModal(); toast('Maquette rechargée.'); }
-      catch (e) { toast('Fichier illisible.'); }
+    r.onload = async () => {
+      let o; try { o = JSON.parse(r.result); } catch (e) { toast('Fichier illisible.'); return; }
+      const name = f.name.replace(/\.json$/i, '').replace(/[-_]+/g, ' ').trim();
+      createProject(name, o);
+      await afterSwitch();
+      toast(`Projet « ${current().name} » créé. Sa banque est vide : ajoute ses photos dans « photo ».`, 7000);
     };
     r.readAsText(f);
+  });
+}
+
+/* ---------- projets ---------- */
+const fileName = s => String(s || 'maquette').replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'maquette';
+async function afterSwitch() {
+  const p = current();
+  P.setProject(p.id, p.legacy);
+  closeModal(); closeSheet(); SEL = { pi: 0, i: 0 };
+  R.applyTypo(); R.applyFormat(); R.applyGrain(); R.setActive(0); R.renderAll();
+  await P.restore();
+  R.renderAll();
+}
+async function openProjects() {
+  const cur = current().id, list = projects();
+  const counts = await Promise.all(list.map(p => P.countFor(p.id, p.legacy)));
+  const date = ts => ts ? new Date(ts).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
+  modal(`<h2>Projets</h2><div class="projs">${list.map((p, k) => `
+    <div class="proj${p.id === cur ? ' cur' : ''}" data-id="${esc(p.id)}">
+      <button class="pmain" data-pa="open"><b>${esc(p.name)}</b>${p.id === cur ? ' <i>ouvert</i>' : ''}
+        <span>${pagesCount(p.id)} planche(s) · ${counts[k]} photo(s) · ${date(p.upd)}</span></button>
+      <div class="pacts"><button data-pa="ren">renommer</button><button data-pa="del" class="danger">supprimer</button></div>
+    </div>`).join('')}</div>
+    <div class="menu"><button id="newProj">+ nouveau projet</button></div>
+    <div class="hint">Chaque projet a ses planches et sa propre banque de photos.</div>`);
+  const box = $('#modalBox');
+  $$('.proj', box).forEach(el => {
+    const id = el.dataset.id, p = list.find(q => q.id === id);
+    $$('[data-pa]', el).forEach(b => b.addEventListener('click', async () => {
+      const a = b.dataset.pa;
+      if (a === 'open') { if (id !== current().id) { openProject(id); await afterSwitch(); toast(`Projet « ${p.name} » ouvert.`); } else closeModal(); }
+      if (a === 'ren') {
+        const n = prompt('Nouveau nom du projet :', p.name); if (n === null || !n.trim()) return;
+        renameProject(id, n); projInfo(); openProjects();
+      }
+      if (a === 'del') {
+        if (!confirm(`Supprimer le projet « ${p.name} » ?\n\nSes planches et sa banque de photos sont effacées de cet appareil. Tes fichiers d'origine ne sont pas touchés.`)) return;
+        const wasCur = id === current().id;
+        await P.dropProject(id, p.legacy); deleteProject(id);
+        if (wasCur) await afterSwitch(); else projInfo();
+        openProjects();
+      }
+    }));
+  });
+  on(box, 'newProj', 'click', async () => {
+    const n = prompt('Nom du nouveau projet :', ''); if (n === null || !n.trim()) return;
+    createProject(n); await afterSwitch(); toast(`Projet « ${current().name} » créé.`);
   });
 }
 function openHelp() {
@@ -1618,8 +1800,12 @@ function openHelp() {
   <p><b>Voile.</b> La zone sombre sous le texte, pour le contraste. Elle suit le texte tant que tu ne la détaches pas.</p>
   <p><b>Exporter.</b> Prépare les JPEG en pleine résolution, puis « enregistrer dans Photos » sur l'iPhone,
   ou un ZIP sur l'ordinateur. Ensuite tu publies depuis Instagram.</p>
+  <p><b>Projets.</b> Chaque album ou post est un projet, avec ses planches et sa propre banque de photos :
+  la banque ne montre que les photos du projet ouvert. Touche le nom en haut, ou « projets » dans le menu,
+  pour passer de l'un à l'autre, en créer un, le renommer ou le supprimer. « Recharger une maquette » crée
+  un nouveau projet au nom du fichier, sans toucher à celui qui est ouvert.</p>
   <p><b>Sauvegarde.</b> Tout est gardé sur cet appareil, photos comprises. « Sauver la maquette » fait un fichier
-  .json des planches, sans les photos.</p>
+  .json des planches du projet ouvert, sans les photos.</p>
   <p class="hint">Touche en dehors pour fermer.</p>`);
 }
 function openGen() {
@@ -1694,6 +1880,8 @@ function initUI() {
   $$('#bar button').forEach(b => b.addEventListener('click', () => { const k = b.dataset.sheet; SHEET === k ? closeSheet() : openSheet(k); }));
   $('#shClose').addEventListener('click', closeSheet);
   $('#menuBtn').addEventListener('click', openMenu);
+  $('#top .brand').addEventListener('click', openProjects);
+  projInfo();
   $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
   $('#quitClean').addEventListener('click', () => cleanMode(false));
   $('#stage').addEventListener('click', e => {
@@ -1732,12 +1920,13 @@ return { get toast() { return toast; }, get openSheet() { return openSheet; }, g
 
 const __m_main = (() => {
 // Demarrage de l'application.
-const { load } = __m_state;
+const { load, current } = __m_state;
 const P = __m_photos;
 const R = __m_render;
 const { initUI, toast } = __m_ui;
 (async () => {
   load();
+  { const p = current(); P.setProject(p.id, p.legacy); }
   R.applyTypo();
   R.applyFormat();
   initUI();
